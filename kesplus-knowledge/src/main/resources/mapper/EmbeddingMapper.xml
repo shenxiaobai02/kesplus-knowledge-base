@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kes.mapper.EmbeddingMapper">
+
+    <insert id="insert">
+        INSERT INTO ${tableName} (uuid, kb_uuid, kb_item_uuid, embedding, text, metadata_json)
+        VALUES (#{embedding.uuid}, #{embedding.kbUuid}, #{embedding.kbItemUuid}, #{embedding.embedding}, #{embedding.text}, #{embedding.metadataJson})
+    </insert>
+
+    <insert id="batchInsert">
+        INSERT INTO ${tableName} (uuid, kb_uuid, kb_item_uuid, embedding, text, metadata_json)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.uuid}, #{item.kbUuid}, #{item.kbItemUuid}, #{item.embedding}, #{item.text}, #{item.metadataJson})
+        </foreach>
+    </insert>
+
+    <select id="selectByKbUuid" resultType="com.kes.entity.KnowledgeBaseEmbedding">
+        SELECT * FROM ${tableName} WHERE kb_uuid = #{kbUuid}
+    </select>
+
+    <delete id="deleteByKbUuid">
+        DELETE FROM ${tableName} WHERE kb_uuid = #{kbUuid}
+    </delete>
+
+    <select id="countByKbUuid" resultType="int">
+        SELECT COUNT(*) FROM ${tableName} WHERE kb_uuid = #{kbUuid}
+    </select>
+
+    <delete id="deleteByKbItemUuid">
+        DELETE FROM ${tableName} WHERE kb_item_uuid = #{kbItemUuid}
+    </delete>
+
+    <select id="retrieve" resultType="com.kes.entity.KnowledgeBaseEmbedding">
+        SELECT *, 1 - (embedding <=> CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) AS score
+        FROM ${tableName}
+        WHERE kb_uuid = #{kbUuid}
+        AND 1 - (embedding <=> CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) >= #{minScore}
+        ORDER BY score DESC
+        LIMIT #{maxResults}
+    </select>
+
+</mapper>

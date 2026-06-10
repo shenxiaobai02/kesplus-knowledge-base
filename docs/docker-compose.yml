@@ -1,0 +1,63 @@
+networks:
+  aideepin-network:
+    driver: bridge
+
+volumes:
+  aideepin-postgres-data:   # PostgreSQL 核心数据卷
+  redis-data-volume:
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: '123456'
+      POSTGRES_DB: kesplus-knowledge
+    ports:
+      - "5432:5432"
+    volumes:
+      # 核心数据持久化（必须）
+      - aideepin-postgres-data:/var/lib/postgresql/data
+    networks:
+      - aideepin-network
+    shm_size: 1g
+
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/neo4j1234
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      # 核心挂载（数据、日志、配置、导入、插件）
+      - /home/neo4j/data:/data
+      - /home/neo4j/logs:/logs
+      - /home/neo4j/conf:/var/lib/neo4j/conf
+      - /home/neo4j/import:/var/lib/neo4j/import
+      - /home/neo4j/plugins:/var/lib/neo4j/plugins
+      # 可选：SSL 证书目录（启用 HTTPS 或 Bolt 加密连接）
+      # - /home/neo4j/ssl:/ssl
+    networks:
+      - aideepin-network
+
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      # 强烈推荐：数据持久化（防止重启丢失数据）
+      - redis-data-volume:/data
+      # 或者使用 bind mount 方式（推荐，便于直接查看备份）
+      # - ./redis/data:/data
+      # 可选：挂载日志目录（方便排查问题）
+      - ./redis/logs:/var/log/redis
+    networks:
+      - aideepin-network
