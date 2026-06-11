@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8080
   servlet:
     context-path: /api
@@ -8,7 +8,7 @@ spring:
     name: kesplus-knowledge-base
 
   datasource:
-    url: jdbc:postgresql://152.136.30.130:5432/kesplus-knowledge
+    url: jdbc:postgresql://152.136.30.130:5432/kesplus-knowledge?currentSchema=kesplus_knowledge_base
     username: root
     password: 123456
     driver-class-name: org.postgresql.Driver
@@ -47,6 +47,7 @@ mybatis-plus:
       logic-delete-field: is_deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+      schema: kesplus_knowledge_base
   mapper-locations: classpath:mapper/**/*.xml
 
 springdoc:
@@ -101,15 +102,15 @@ management:
     web:
       exposure:
         include: health,metrics,prometheus
-  metrics:
-    export:
-      prometheus:
-        enabled: true
   health:
     redis:
       enabled: true
     db:
       enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 logging:
   level:
@@ -122,5 +123,3 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/kesplus-knowledge-base.log
-    max-size: 100MB
-    max-history: 30

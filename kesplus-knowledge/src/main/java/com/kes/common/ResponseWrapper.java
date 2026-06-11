@@ -45,6 +45,14 @@ public class ResponseWrapper<T> {
         return response;
     }
 
+    public static <T> ResponseWrapper<T> success() {
+        ResponseWrapper<T> response = new ResponseWrapper<>();
+        response.setCode("SUCCESS");
+        response.setMessage("操作成功");
+        response.setSuccess(true);
+        return response;
+    }
+
     public static <T> ResponseWrapper<T> error(String code, String message) {
         ResponseWrapper<T> response = new ResponseWrapper<>();
         response.setCode(code);

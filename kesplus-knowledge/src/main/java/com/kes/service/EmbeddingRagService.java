@@ -1,5 +1,6 @@
 package com.kes.service;
 
+import com.kes.config.RagConfig;
 import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseEmbedding;
 import com.kes.mapper.EmbeddingMapper;
@@ -15,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -47,8 +47,11 @@ public class EmbeddingRagService {
         kbEmbedding.setText(text);
 
         Metadata metadata = document.metadata();
-        if (metadata != null && !metadata.isEmpty()) {
-            kbEmbedding.setMetadataJson(com.kes.util.JsonUtil.toJson(metadata.asMap()));
+        if (metadata != null) {
+            java.util.Map<String, Object> metaMap = metadata.toMap();
+            if (metaMap != null && !metaMap.isEmpty()) {
+                kbEmbedding.setMetadataJson(com.kes.util.JsonUtil.toJson(metaMap));
+            }
         }
 
         embeddingMapper.insert(tableName, kbEmbedding);
@@ -71,8 +74,11 @@ public class EmbeddingRagService {
             kbEmbedding.setText(text);
 
             Metadata metadata = document.metadata();
-            if (metadata != null && !metadata.isEmpty()) {
-                kbEmbedding.setMetadataJson(com.kes.util.JsonUtil.toJson(metadata.asMap()));
+            if (metadata != null) {
+                java.util.Map<String, Object> metaMap = metadata.toMap();
+                if (metaMap != null && !metaMap.isEmpty()) {
+                    kbEmbedding.setMetadataJson(com.kes.util.JsonUtil.toJson(metaMap));
+                }
             }
 
             embeddings.add(kbEmbedding);

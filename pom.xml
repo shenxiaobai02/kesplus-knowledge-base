@@ -30,6 +30,7 @@
         <springdoc.version>3.0.1</springdoc.version>
         <lombok.version>1.18.46</lombok.version>
         <jedis.version>7.5.0</jedis.version>
+        <fastjson2.version>2.0.54</fastjson2.version>
     </properties>
 
     <dependencyManagement>
@@ -108,6 +109,12 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>${fastjson2.version}</version>
             </dependency>
 
             <dependency>

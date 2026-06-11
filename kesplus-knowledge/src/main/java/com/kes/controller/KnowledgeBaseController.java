@@ -134,9 +134,14 @@ public class KnowledgeBaseController {
         
         List<Document> chunks = smartDocumentSplitter.split(document);
         
-        EmbeddingModel embeddingModel = embeddingModelService.getByUuid(kb.getEmbeddingModelUuid());
-        if (embeddingModel == null) {
+        com.kes.entity.EmbeddingModel entityModel = embeddingModelService.getByUuid(kb.getEmbeddingModelUuid());
+        if (entityModel == null) {
             return ResponseWrapper.error("嵌入模型不存在");
+        }
+        
+        EmbeddingModel embeddingModel = embeddingModelService.createLangChainEmbeddingModel(entityModel);
+        if (embeddingModel == null) {
+            return ResponseWrapper.error("嵌入模型创建失败");
         }
 
         embeddingRagService.batchIngest(kb, chunks, embeddingModel);

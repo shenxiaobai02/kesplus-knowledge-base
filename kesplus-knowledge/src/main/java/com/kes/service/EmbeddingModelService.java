@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.kes.entity.EmbeddingModel;
 import com.kes.mapper.EmbeddingModelMapper;
 import com.kes.util.UuidUtil;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -98,5 +100,29 @@ public class EmbeddingModelService extends ServiceImpl<EmbeddingModelMapper, Emb
             log.error("Failed to ensure table exists for dimension {}", dimension, e);
             throw new RuntimeException("Failed to ensure table exists", e);
         }
+    }
+
+    public dev.langchain4j.model.embedding.EmbeddingModel createLangChainEmbeddingModel(EmbeddingModel model) {
+        if (model == null) {
+            return null;
+        }
+        
+        String modelType = model.getModelType() != null ? model.getModelType().toLowerCase() : "ollama";
+        
+        return switch (modelType) {
+            case "ollama" -> OllamaEmbeddingModel.builder()
+                    .baseUrl(model.getBaseUrl() != null ? model.getBaseUrl() : "http://localhost:11434")
+                    .modelName(model.getModelName())
+                    .build();
+            case "huggingface", "siliconflow", "openai" -> OpenAiEmbeddingModel.builder()
+                    .baseUrl(model.getBaseUrl() != null ? model.getBaseUrl() : "https://api.siliconflow.cn/v1")
+                    .apiKey(model.getApiKey())
+                    .modelName(model.getModelName())
+                    .build();
+            default -> OllamaEmbeddingModel.builder()
+                    .baseUrl("http://localhost:11434")
+                    .modelName(model.getModelName() != null ? model.getModelName() : "all-minilm")
+                    .build();
+        };
     }
 }

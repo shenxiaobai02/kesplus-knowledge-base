@@ -71,9 +71,13 @@ public class FileStorageService {
             default -> throw new IllegalArgumentException("不支持的文件格式: " + extension);
         };
 
-        Metadata metadata = Metadata.from("fileName", file.getName())
-            .add("fileUuid", fileUuid)
-            .add("kbUuid", kbUuid);
+        Metadata metadata = Metadata.from(
+            java.util.Map.of(
+                "fileName", file.getName(),
+                "fileUuid", fileUuid,
+                "kbUuid", kbUuid
+            )
+        );
 
         return Document.from(content, metadata);
     }
@@ -148,7 +152,7 @@ public class FileStorageService {
     private String parseMd(File file) throws IOException {
         String markdown = Files.readString(file.toPath());
         Parser parser = Parser.builder().build();
-        TextContentRenderer renderer = new TextContentRenderer();
+        TextContentRenderer renderer = TextContentRenderer.builder().build();
         return renderer.render(parser.parse(markdown));
     }
 

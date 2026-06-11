@@ -32,10 +32,10 @@
     </delete>
 
     <select id="retrieve" resultType="com.kes.entity.KnowledgeBaseEmbedding">
-        SELECT *, 1 - (embedding <=> CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) AS score
+        SELECT *, 1 - (embedding &lt;=&gt; CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) AS score
         FROM ${tableName}
         WHERE kb_uuid = #{kbUuid}
-        AND 1 - (embedding <=> CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) >= #{minScore}
+        AND 1 - (embedding &lt;=&gt; CAST(ARRAY[<foreach collection="queryEmbedding" item="val" separator=",">#{val}</foreach>] AS vector)) &gt;= #{minScore}
         ORDER BY score DESC
         LIMIT #{maxResults}
     </select>
