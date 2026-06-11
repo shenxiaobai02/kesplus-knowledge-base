@@ -1,4 +1,4 @@
-﻿﻿server:
+﻿server:
   port: 8080
   servlet:
     context-path: /api
@@ -64,6 +64,8 @@ rag:
   enable-graph-rag: true
   enable-self-rag: false
   enable-cache: true
+  storage:
+    path: ./data/uploads
 
   retriever:
     timeout-ms: 30000
