@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.kes.entity.AuditLog;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,6 +12,16 @@ import java.util.List;
 @Mapper
 public interface AuditLogMapper extends BaseMapper<AuditLog> {
 
+    @Select("<script>" +
+            "SELECT * FROM kes_audit_log WHERE 1=1" +
+            "<if test='userId != null'> AND user_id = #{userId}</if>" +
+            "<if test='tenantUuid != null and tenantUuid != \"\"'> AND tenant_uuid = #{tenantUuid}</if>" +
+            "<if test='operationType != null and operationType != \"\"'> AND operation_type = #{operationType}</if>" +
+            "<if test='resourceType != null and resourceType != \"\"'> AND resource_type = #{resourceType}</if>" +
+            "<if test='startTime != null'> AND created_time &gt;= #{startTime}</if>" +
+            "<if test='endTime != null'> AND created_time &lt;= #{endTime}</if>" +
+            " ORDER BY created_time DESC LIMIT #{limit} OFFSET #{offset}" +
+            "</script>")
     List<AuditLog> selectByConditions(
             @Param("userId") Long userId,
             @Param("tenantUuid") String tenantUuid,
@@ -22,6 +33,15 @@ public interface AuditLogMapper extends BaseMapper<AuditLog> {
             @Param("limit") int limit
     );
 
+    @Select("<script>" +
+            "SELECT COUNT(*) FROM kes_audit_log WHERE 1=1" +
+            "<if test='userId != null'> AND user_id = #{userId}</if>" +
+            "<if test='tenantUuid != null and tenantUuid != \"\"'> AND tenant_uuid = #{tenantUuid}</if>" +
+            "<if test='operationType != null and operationType != \"\"'> AND operation_type = #{operationType}</if>" +
+            "<if test='resourceType != null and resourceType != \"\"'> AND resource_type = #{resourceType}</if>" +
+            "<if test='startTime != null'> AND created_time &gt;= #{startTime}</if>" +
+            "<if test='endTime != null'> AND created_time &lt;= #{endTime}</if>" +
+            "</script>")
     int countByConditions(
             @Param("userId") Long userId,
             @Param("tenantUuid") String tenantUuid,
