@@ -1,7 +1,5 @@
 package com.kes.service;
 
-import com.kes.dto.request.TenantCreateRequest;
-import com.kes.dto.request.TenantUpdateRequest;
 import com.kes.entity.Tenant;
 import com.kes.mapper.TenantMapper;
 import com.kes.util.UuidUtil;
@@ -15,10 +13,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,37 +29,25 @@ class TenantServiceTest {
     private TenantService tenantService;
 
     private Tenant tenant;
-    private TenantCreateRequest createRequest;
-    private TenantUpdateRequest updateRequest;
 
     @BeforeEach
     void setUp() {
         tenant = new Tenant();
         tenant.setId(1L);
-        tenant.setUuid(UuidUtil.generate());
+        tenant.setUuid(UuidUtil.create());
         tenant.setName("Test Tenant");
         tenant.setCode("TEST");
         tenant.setDescription("Test description");
         tenant.setStatus("ACTIVE");
         tenant.setCreatedTime(LocalDateTime.now());
         tenant.setUpdatedTime(LocalDateTime.now());
-
-        createRequest = new TenantCreateRequest();
-        createRequest.setName("Test Tenant");
-        createRequest.setCode("TEST");
-        createRequest.setDescription("Test description");
-
-        updateRequest = new TenantUpdateRequest();
-        updateRequest.setName("Updated Tenant");
-        updateRequest.setDescription("Updated description");
     }
 
     @Test
     void testCreateTenant() {
         when(tenantMapper.insert(any(Tenant.class))).thenReturn(1);
-        when(tenantMapper.selectById(any(Long.class))).thenReturn(tenant);
 
-        Tenant result = tenantService.create(createRequest);
+        Tenant result = tenantService.create(tenant);
 
         assertNotNull(result);
         assertEquals("Test Tenant", result.getName());
@@ -70,30 +56,30 @@ class TenantServiceTest {
     }
 
     @Test
-    void testFindById() {
+    void testGetById() {
         when(tenantMapper.selectById(eq(1L))).thenReturn(tenant);
 
-        Tenant result = tenantService.findById(1L);
+        Tenant result = tenantService.getById(1L);
 
         assertNotNull(result);
         assertEquals("Test Tenant", result.getName());
     }
 
     @Test
-    void testFindByUuid() {
-        when(tenantMapper.selectOne(any())).thenReturn(tenant);
+    void testGetByUuid() {
+        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
 
-        Tenant result = tenantService.findByUuid(tenant.getUuid());
+        Tenant result = tenantService.getByUuid(tenant.getUuid());
 
         assertNotNull(result);
         assertEquals(tenant.getUuid(), result.getUuid());
     }
 
     @Test
-    void testFindAll() {
-        when(tenantMapper.selectList(any())).thenReturn(Arrays.asList(tenant));
+    void testListAll() {
+        when(tenantMapper.selectAllActive()).thenReturn(Arrays.asList(tenant));
 
-        List<Tenant> result = tenantService.findAll();
+        List<Tenant> result = tenantService.listAll();
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -101,10 +87,11 @@ class TenantServiceTest {
 
     @Test
     void testUpdateTenant() {
-        when(tenantMapper.selectOne(any())).thenReturn(tenant);
+        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
         when(tenantMapper.updateById(any(Tenant.class))).thenReturn(1);
 
-        Tenant result = tenantService.update(tenant.getUuid(), updateRequest);
+        tenant.setName("Updated Tenant");
+        Tenant result = tenantService.update(tenant);
 
         assertNotNull(result);
         assertEquals("Updated Tenant", result.getName());
@@ -113,7 +100,7 @@ class TenantServiceTest {
 
     @Test
     void testDeleteTenant() {
-        when(tenantMapper.selectOne(any())).thenReturn(tenant);
+        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
         when(tenantMapper.updateById(any(Tenant.class))).thenReturn(1);
 
         tenantService.delete(tenant.getUuid());
@@ -122,12 +109,12 @@ class TenantServiceTest {
     }
 
     @Test
-    void testSearch() {
-        when(tenantMapper.selectList(any())).thenReturn(Arrays.asList(tenant));
+    void testGetByCode() {
+        when(tenantMapper.selectByCode(eq("TEST"))).thenReturn(tenant);
 
-        List<Tenant> result = tenantService.search("Test");
+        Tenant result = tenantService.getByCode("TEST");
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals("TEST", result.getCode());
     }
 }

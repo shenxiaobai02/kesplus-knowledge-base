@@ -5,9 +5,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,8 +30,8 @@ class HealthControllerTest {
 
     @Test
     void testHealthAllUp() throws Exception {
-        when(redisTemplate.opsForValue().set("health_check", "ok", java.time.Duration.ofSeconds(10))).thenReturn(true);
-        when(redisTemplate.opsForValue().get("health_check")).thenReturn("ok");
+        ValueOperations<String, String> valueOps = (ValueOperations<String, String>) when(redisTemplate.opsForValue()).getMock();
+        when(valueOps.get("health_check")).thenReturn("ok");
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
@@ -41,8 +44,8 @@ class HealthControllerTest {
     @Test
     void testHealthDatabaseDown() throws Exception {
         doThrow(new RuntimeException("Connection failed")).when(jdbcTemplate).execute("SELECT 1");
-        when(redisTemplate.opsForValue().set("health_check", "ok", java.time.Duration.ofSeconds(10))).thenReturn(true);
-        when(redisTemplate.opsForValue().get("health_check")).thenReturn("ok");
+        ValueOperations<String, String> valueOps = (ValueOperations<String, String>) when(redisTemplate.opsForValue()).getMock();
+        when(valueOps.get("health_check")).thenReturn("ok");
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())

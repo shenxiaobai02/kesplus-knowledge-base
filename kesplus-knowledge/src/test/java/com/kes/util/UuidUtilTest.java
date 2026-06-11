@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class UuidUtilTest {
 
     @Test
-    void testGenerate() {
-        String uuid = UuidUtil.generate();
+    void testCreate() {
+        String uuid = UuidUtil.create();
 
         assertNotNull(uuid);
         assertEquals(36, uuid.length());
@@ -16,8 +16,8 @@ class UuidUtilTest {
     }
 
     @Test
-    void testGenerateShort() {
-        String shortUuid = UuidUtil.generateShort();
+    void testCreateShort() {
+        String shortUuid = UuidUtil.createShort();
 
         assertNotNull(shortUuid);
         assertTrue(shortUuid.length() > 0);
@@ -25,9 +25,9 @@ class UuidUtilTest {
     }
 
     @Test
-    void testGenerateMultiple() {
-        String uuid1 = UuidUtil.generate();
-        String uuid2 = UuidUtil.generate();
+    void testCreateMultiple() {
+        String uuid1 = UuidUtil.create();
+        String uuid2 = UuidUtil.create();
 
         assertNotNull(uuid1);
         assertNotNull(uuid2);

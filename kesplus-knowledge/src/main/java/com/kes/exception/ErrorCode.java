@@ -1,19 +1,39 @@
 package com.kes.exception;
 
-public interface ErrorCode {
+public enum ErrorCode {
 
-    String A_DATA_NOT_FOUND = "A_DATA_NOT_FOUND";
-    String A_USER_NOT_AUTH = "A_USER_NOT_AUTH";
-    String A_QA_ASK_LIMIT = "A_QA_ASK_LIMIT";
-    String A_DOC_INDEX_DOING = "A_DOC_INDEX_DOING";
-    String A_UPLOAD_FAIL = "A_UPLOAD_FAIL";
-    String A_VALIDATION_ERROR = "A_VALIDATION_ERROR";
-    String A_SYSTEM_ERROR = "A_SYSTEM_ERROR";
-    String A_SERVICE_UNAVAILABLE = "A_SERVICE_UNAVAILABLE";
-    String A_TIMEOUT = "A_TIMEOUT";
-    String A_RATE_LIMIT = "A_RATE_LIMIT";
-    String A_TENANT_NOT_FOUND = "A_TENANT_NOT_FOUND";
-    String A_ROLE_NOT_FOUND = "A_ROLE_NOT_FOUND";
-    String A_PERMISSION_DENIED = "A_PERMISSION_DENIED";
-    String A_SYSTEM_ROLE_CANNOT_BE_MODIFIED = "A_SYSTEM_ROLE_CANNOT_BE_MODIFIED";
+    // Common error codes
+    BAD_REQUEST(400, "Bad Request"),
+    UNAUTHORIZED(401, "Unauthorized"),
+    FORBIDDEN(403, "Forbidden"),
+    NOT_FOUND(404, "Not Found"),
+    INTERNAL_ERROR(500, "Internal Server Error"),
+
+    // Knowledge Base error codes (1xxx)
+    KNOWLEDGE_BASE_NOT_FOUND(1001, "Knowledge Base not found"),
+    KNOWLEDGE_BASE_ITEM_NOT_FOUND(1002, "Knowledge Base Item not found"),
+
+    // Tenant error codes (2xxx)
+    TENANT_NOT_FOUND(2001, "Tenant not found"),
+    TENANT_CODE_EXISTS(2002, "Tenant code already exists"),
+
+    // Role error codes (3xxx)
+    ROLE_NOT_FOUND(3001, "Role not found"),
+    ROLE_CODE_EXISTS(3002, "Role code already exists");
+
+    private final int code;
+    private final String message;
+
+    ErrorCode(int code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
 }

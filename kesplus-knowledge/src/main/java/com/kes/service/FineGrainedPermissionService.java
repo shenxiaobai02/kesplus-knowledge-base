@@ -17,7 +17,7 @@ public class FineGrainedPermissionService {
 
     public void checkAccess(Long userId, String resourceType, String resourceUuid, String action) {
         if (!hasPermission(userId, resourceType, resourceUuid, action)) {
-            throw new BaseException(ErrorCode.A_USER_NOT_AUTH, "Permission denied");
+            throw new BaseException(ErrorCode.FORBIDDEN, "Permission denied");
         }
     }
 

@@ -5,36 +5,40 @@ import lombok.Getter;
 @Getter
 public class BaseException extends RuntimeException {
 
-    private final String code;
+    private final ErrorCode errorCode;
     private final String message;
     private final Object data;
 
-    public BaseException(String code, String message) {
+    public BaseException(ErrorCode errorCode, String message) {
         super(message);
-        this.code = code;
+        this.errorCode = errorCode;
         this.message = message;
         this.data = null;
     }
 
-    public BaseException(String code, String message, Object data) {
+    public BaseException(ErrorCode errorCode, String message, Object data) {
         super(message);
-        this.code = code;
+        this.errorCode = errorCode;
         this.message = message;
         this.data = data;
     }
 
     public BaseException(String message) {
         super(message);
-        this.code = "ERROR";
+        this.errorCode = ErrorCode.INTERNAL_ERROR;
         this.message = message;
         this.data = null;
     }
 
-    public static BaseException of(String code, String message) {
-        return new BaseException(code, message);
+    public String getCode() {
+        return errorCode.name();
     }
 
-    public static BaseException of(String code, String message, Object data) {
-        return new BaseException(code, message, data);
+    public static BaseException of(ErrorCode errorCode, String message) {
+        return new BaseException(errorCode, message);
+    }
+
+    public static BaseException of(ErrorCode errorCode, String message, Object data) {
+        return new BaseException(errorCode, message, data);
     }
 }

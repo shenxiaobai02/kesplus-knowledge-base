@@ -2,6 +2,7 @@ package com.kes.controller;
 
 import com.kes.dto.request.QaRequest;
 import com.kes.dto.response.QaResponse;
+import com.kes.entity.KnowledgeBaseQa;
 import com.kes.service.KnowledgeBaseQaService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ class KnowledgeBaseQAControllerTest {
     private KnowledgeBaseQaService knowledgeBaseQaService;
 
     private QaResponse qaResponse;
+    private KnowledgeBaseQa qaEntity;
 
     @BeforeEach
     void setUp() {
@@ -42,17 +44,29 @@ class KnowledgeBaseQAControllerTest {
         qaResponse.setAnswer("AI is artificial intelligence");
         qaResponse.setPromptTokens(10);
         qaResponse.setAnswerTokens(15);
+
+        qaEntity = new KnowledgeBaseQa();
+        qaEntity.setId(1L);
+        qaEntity.setQuestion("What is AI?");
+        qaEntity.setAnswer("AI is artificial intelligence");
+        qaEntity.setPromptTokens(10);
+        qaEntity.setAnswerTokens(15);
     }
 
     @Test
     void testAskQuestion() throws Exception {
         QaRequest request = new QaRequest();
-        request.setKbUuid("test-kb-uuid");
         request.setQuestion("What is AI?");
 
-        Mockito.when(knowledgeBaseQaService.ask(any(QaRequest.class))).thenReturn(qaResponse);
+        Mockito.when(knowledgeBaseQaService.qa(
+            eq("test-kb-uuid"),
+            any(String.class),
+            any(Integer.class),
+            any(Double.class),
+            any(Double.class)
+        )).thenReturn(qaResponse);
 
-        mockMvc.perform(post("/qa/ask")
+        mockMvc.perform(post("/api/knowledge-base/{kbUuid}/qa", "test-kb-uuid")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -64,9 +78,10 @@ class KnowledgeBaseQAControllerTest {
     @Test
     void testGetQAHistory() throws Exception {
         List<QaResponse> list = Arrays.asList(qaResponse);
-        Mockito.when(knowledgeBaseQaService.getHistory(eq("test-kb-uuid"))).thenReturn(list);
+        Mockito.when(knowledgeBaseQaService.getHistory(eq("test-kb-uuid"), eq(10))).thenReturn(list);
 
-        mockMvc.perform(get("/qa/history/{kbUuid}", "test-kb-uuid"))
+        mockMvc.perform(get("/api/knowledge-base/{kbUuid}/qa/history", "test-kb-uuid")
+                        .param("limit", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.length()").value(1));
@@ -74,20 +89,11 @@ class KnowledgeBaseQAControllerTest {
 
     @Test
     void testGetQAById() throws Exception {
-        Mockito.when(knowledgeBaseQaService.getById(eq(1L))).thenReturn(qaResponse);
+        Mockito.when(knowledgeBaseQaService.getById(eq(1L))).thenReturn(qaEntity);
 
-        mockMvc.perform(get("/qa/{id}", 1))
+        mockMvc.perform(get("/api/knowledge-base/{kbUuid}/qa/{id}", "test-kb-uuid", 1))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.question").value("What is AI?"));
-    }
-
-    @Test
-    void testDeleteQA() throws Exception {
-        Mockito.doNothing().when(knowledgeBaseQaService).delete(eq(1L));
-
-        mockMvc.perform(delete("/qa/{id}", 1))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
     }
 }

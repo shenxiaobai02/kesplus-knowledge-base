@@ -33,7 +33,7 @@ class EmbeddingModelServiceTest {
     void setUp() {
         model = new EmbeddingModel();
         model.setId(1L);
-        model.setUuid(UuidUtil.generate());
+        model.setUuid(UuidUtil.create());
         model.setModelName("BAAI/bge-m3");
         model.setEmbeddingDimension(1024);
         model.setModelType("huggingface");
@@ -46,7 +46,6 @@ class EmbeddingModelServiceTest {
     @Test
     void testCreateModel() {
         when(embeddingModelMapper.insert(any(EmbeddingModel.class))).thenReturn(1);
-        when(embeddingModelMapper.selectById(any(Long.class))).thenReturn(model);
 
         EmbeddingModel result = embeddingModelService.create(model);
 
@@ -57,50 +56,40 @@ class EmbeddingModelServiceTest {
     }
 
     @Test
-    void testFindById() {
-        when(embeddingModelMapper.selectById(eq(1L))).thenReturn(model);
+    void testGetByUuid() {
+        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
 
-        EmbeddingModel result = embeddingModelService.findById(1L);
-
-        assertNotNull(result);
-        assertEquals("BAAI/bge-m3", result.getModelName());
-    }
-
-    @Test
-    void testFindByUuid() {
-        when(embeddingModelMapper.selectOne(any())).thenReturn(model);
-
-        EmbeddingModel result = embeddingModelService.findByUuid(model.getUuid());
+        EmbeddingModel result = embeddingModelService.getByUuid(model.getUuid());
 
         assertNotNull(result);
         assertEquals(model.getUuid(), result.getUuid());
     }
 
     @Test
-    void testFindByName() {
-        when(embeddingModelMapper.selectOne(any())).thenReturn(model);
+    void testGetByModelName() {
+        when(embeddingModelMapper.selectByModelName(eq("BAAI/bge-m3"))).thenReturn(model);
 
-        EmbeddingModel result = embeddingModelService.findByName("BAAI/bge-m3");
+        EmbeddingModel result = embeddingModelService.getByModelName("BAAI/bge-m3");
 
         assertNotNull(result);
         assertEquals("BAAI/bge-m3", result.getModelName());
     }
 
     @Test
-    void testFindAll() {
-        when(embeddingModelMapper.selectList(any())).thenReturn(Arrays.asList(model));
+    void testGetByDimension() {
+        when(embeddingModelMapper.selectByDimension(eq(1024))).thenReturn(Arrays.asList(model));
 
-        List<EmbeddingModel> result = embeddingModelService.findAll();
+        List<EmbeddingModel> result = embeddingModelService.getByDimension(1024);
 
         assertNotNull(result);
         assertEquals(1, result.size());
     }
 
     @Test
-    void testFindActiveModels() {
-        when(embeddingModelMapper.selectList(any())).thenReturn(Arrays.asList(model));
+    void testGetActiveModels() {
+        when(embeddingModelMapper.selectActiveModels()).thenReturn(Arrays.asList(model));
 
-        List<EmbeddingModel> result = embeddingModelService.findActiveModels();
+        List<EmbeddingModel> result = embeddingModelService.getActiveModels();
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -108,11 +97,11 @@ class EmbeddingModelServiceTest {
 
     @Test
     void testUpdateModel() {
-        when(embeddingModelMapper.selectOne(any())).thenReturn(model);
+        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
         when(embeddingModelMapper.updateById(any(EmbeddingModel.class))).thenReturn(1);
 
         model.setModelName("Updated Model");
-        EmbeddingModel result = embeddingModelService.update(model.getUuid(), model);
+        EmbeddingModel result = embeddingModelService.update(model);
 
         assertNotNull(result);
         assertEquals("Updated Model", result.getModelName());
@@ -121,21 +110,11 @@ class EmbeddingModelServiceTest {
 
     @Test
     void testDeleteModel() {
-        when(embeddingModelMapper.selectOne(any())).thenReturn(model);
-        when(embeddingModelMapper.updateById(any(EmbeddingModel.class))).thenReturn(1);
+        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
+        when(embeddingModelMapper.deleteById(eq(1L))).thenReturn(1);
 
         embeddingModelService.delete(model.getUuid());
 
-        verify(embeddingModelMapper, times(1)).updateById(any(EmbeddingModel.class));
-    }
-
-    @Test
-    void testDeactivateModel() {
-        when(embeddingModelMapper.selectOne(any())).thenReturn(model);
-        when(embeddingModelMapper.updateById(any(EmbeddingModel.class))).thenReturn(1);
-
-        embeddingModelService.deactivate(model.getUuid());
-
-        verify(embeddingModelMapper, times(1)).updateById(any(EmbeddingModel.class));
+        verify(embeddingModelMapper, times(1)).deleteById(eq(1L));
     }
 }

@@ -67,7 +67,7 @@ class JsonUtilTest {
     void testFromJsonList() {
         String json = "[{\"title\":\"KB1\"},{\"title\":\"KB2\"}]";
 
-        List<KnowledgeBase> list = JsonUtil.fromJsonList(json, KnowledgeBase.class);
+        List<KnowledgeBase> list = JsonUtil.fromJsonArray(json, KnowledgeBase.class);
 
         assertNotNull(list);
         assertEquals(2, list.size());

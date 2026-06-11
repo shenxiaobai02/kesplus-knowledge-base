@@ -33,28 +33,28 @@ public class GlobalExceptionHandler {
         });
         log.warn("Validation error: {}", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildErrorResponse(ErrorCode.A_VALIDATION_ERROR, "参数校验失败", errors));
+                .body(buildErrorResponse(ErrorCode.BAD_REQUEST.name(), "参数校验失败", errors));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
         log.warn("File upload size exceeded: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildErrorResponse(ErrorCode.A_UPLOAD_FAIL, "上传文件大小超过限制"));
+                .body(buildErrorResponse(ErrorCode.BAD_REQUEST.name(), "上传文件大小超过限制"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Illegal argument: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(buildErrorResponse(ErrorCode.A_VALIDATION_ERROR, e.getMessage()));
+                .body(buildErrorResponse(ErrorCode.BAD_REQUEST.name(), e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception e) {
         log.error("System error", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(buildErrorResponse(ErrorCode.A_SYSTEM_ERROR, "系统内部错误"));
+                .body(buildErrorResponse(ErrorCode.INTERNAL_ERROR.name(), "系统内部错误"));
     }
 
     private Map<String, Object> buildErrorResponse(String code, String message) {

@@ -41,7 +41,7 @@ class KnowledgeBaseControllerTest {
     void setUp() {
         kb = new KnowledgeBase();
         kb.setId(1L);
-        kb.setUuid(UuidUtil.generate());
+        kb.setUuid(UuidUtil.create());
         kb.setTitle("Test KB");
         kb.setRemark("Test remark");
         kb.setIsPublic(false);
@@ -55,7 +55,7 @@ class KnowledgeBaseControllerTest {
         request.setRemark("Test remark");
         request.setIsPublic(false);
 
-        Mockito.when(knowledgeBaseService.create(any(KnowledgeBaseCreateRequest.class))).thenReturn(kb);
+        Mockito.when(knowledgeBaseService.create(any(KnowledgeBase.class), any(String.class))).thenReturn(kb);
 
         mockMvc.perform(post("/knowledge-base")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -67,7 +67,7 @@ class KnowledgeBaseControllerTest {
 
     @Test
     void testGetKnowledgeBaseById() throws Exception {
-        Mockito.when(knowledgeBaseService.findById(eq(1L))).thenReturn(kb);
+        Mockito.when(knowledgeBaseService.getById(eq(1L))).thenReturn(kb);
 
         mockMvc.perform(get("/knowledge-base/{id}", 1))
                 .andExpect(status().isOk())
@@ -77,7 +77,7 @@ class KnowledgeBaseControllerTest {
 
     @Test
     void testGetKnowledgeBaseByUuid() throws Exception {
-        Mockito.when(knowledgeBaseService.findByUuid(eq(kb.getUuid()))).thenReturn(kb);
+        Mockito.when(knowledgeBaseService.getByUuid(eq(kb.getUuid()))).thenReturn(kb);
 
         mockMvc.perform(get("/knowledge-base/uuid/{uuid}", kb.getUuid()))
                 .andExpect(status().isOk())
@@ -88,7 +88,7 @@ class KnowledgeBaseControllerTest {
     @Test
     void testGetAllKnowledgeBases() throws Exception {
         List<KnowledgeBase> list = Arrays.asList(kb);
-        Mockito.when(knowledgeBaseService.findAll()).thenReturn(list);
+        Mockito.when(knowledgeBaseService.list()).thenReturn(list);
 
         mockMvc.perform(get("/knowledge-base"))
                 .andExpect(status().isOk())
@@ -103,7 +103,7 @@ class KnowledgeBaseControllerTest {
         request.setRemark("Updated remark");
 
         kb.setTitle("Updated KB");
-        Mockito.when(knowledgeBaseService.update(eq(kb.getUuid()), any(KnowledgeBaseUpdateRequest.class))).thenReturn(kb);
+        Mockito.when(knowledgeBaseService.update(any(KnowledgeBase.class))).thenReturn(kb);
 
         mockMvc.perform(put("/knowledge-base/{uuid}", kb.getUuid())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -125,9 +125,9 @@ class KnowledgeBaseControllerTest {
     @Test
     void testSearchKnowledgeBases() throws Exception {
         List<KnowledgeBase> list = Arrays.asList(kb);
-        Mockito.when(knowledgeBaseService.search(eq("Test"), eq(null))).thenReturn(list);
+        Mockito.when(knowledgeBaseService.list()).thenReturn(list);
 
-        mockMvc.perform(get("/knowledge-base/search")
+        mockMvc.perform(get("/knowledge-base")
                         .param("keyword", "Test"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));

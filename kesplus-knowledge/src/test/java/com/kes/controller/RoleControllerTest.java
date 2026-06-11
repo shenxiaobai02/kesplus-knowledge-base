@@ -2,7 +2,6 @@ package com.kes.controller;
 
 import com.kes.dto.request.RoleCreateRequest;
 import com.kes.dto.request.RoleUpdateRequest;
-import com.kes.dto.request.UserRoleAssignRequest;
 import com.kes.entity.Role;
 import com.kes.service.RoleService;
 import com.kes.util.UuidUtil;
@@ -42,11 +41,11 @@ class RoleControllerTest {
     void setUp() {
         role = new Role();
         role.setId(1L);
-        role.setUuid(UuidUtil.generate());
+        role.setUuid(UuidUtil.create());
         role.setName("Test Role");
         role.setCode("TEST_ROLE");
         role.setDescription("Test description");
-        role.setTenantUuid(UuidUtil.generate());
+        role.setTenantUuid(UuidUtil.create());
     }
 
     @Test
@@ -55,11 +54,11 @@ class RoleControllerTest {
         request.setName("Test Role");
         request.setCode("TEST_ROLE");
         request.setDescription("Test description");
-        request.setTenantUuid(UuidUtil.generate());
+        request.setTenantUuid(UuidUtil.create());
 
-        Mockito.when(roleService.create(any(RoleCreateRequest.class))).thenReturn(role);
+        Mockito.when(roleService.create(any(Role.class))).thenReturn(role);
 
-        mockMvc.perform(post("/role")
+        mockMvc.perform(post("/api/role")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -69,9 +68,9 @@ class RoleControllerTest {
 
     @Test
     void testGetRoleById() throws Exception {
-        Mockito.when(roleService.findById(eq(1L))).thenReturn(role);
+        Mockito.when(roleService.getById(eq(1L))).thenReturn(role);
 
-        mockMvc.perform(get("/role/{id}", 1))
+        mockMvc.perform(get("/api/role/{uuid}", role.getUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.name").value("Test Role"));
@@ -79,9 +78,9 @@ class RoleControllerTest {
 
     @Test
     void testGetRoleByUuid() throws Exception {
-        Mockito.when(roleService.findByUuid(eq(role.getUuid()))).thenReturn(role);
+        Mockito.when(roleService.getByUuid(eq(role.getUuid()))).thenReturn(role);
 
-        mockMvc.perform(get("/role/uuid/{uuid}", role.getUuid()))
+        mockMvc.perform(get("/api/role/{uuid}", role.getUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.name").value("Test Role"));
@@ -90,9 +89,10 @@ class RoleControllerTest {
     @Test
     void testGetAllRoles() throws Exception {
         List<Role> list = Arrays.asList(role);
-        Mockito.when(roleService.findAll()).thenReturn(list);
+        Mockito.when(roleService.listByTenant(eq("test-tenant-uuid"))).thenReturn(list);
 
-        mockMvc.perform(get("/role"))
+        mockMvc.perform(get("/api/role")
+                        .param("tenantUuid", "test-tenant-uuid"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.length()").value(1));
@@ -105,9 +105,9 @@ class RoleControllerTest {
         request.setDescription("Updated description");
 
         role.setName("Updated Role");
-        Mockito.when(roleService.update(eq(role.getUuid()), any(RoleUpdateRequest.class))).thenReturn(role);
+        Mockito.when(roleService.update(any(Role.class))).thenReturn(role);
 
-        mockMvc.perform(put("/role/{uuid}", role.getUuid())
+        mockMvc.perform(put("/api/role/{uuid}", role.getUuid())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -119,29 +119,29 @@ class RoleControllerTest {
     void testDeleteRole() throws Exception {
         Mockito.doNothing().when(roleService).delete(eq(role.getUuid()));
 
-        mockMvc.perform(delete("/role/{uuid}", role.getUuid()))
+        mockMvc.perform(delete("/api/role/{uuid}", role.getUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
     void testAssignRoleToUser() throws Exception {
-        UserRoleAssignRequest request = new UserRoleAssignRequest();
-        request.setUserId(1L);
-        request.setRoleUuid(role.getUuid());
+        Mockito.doNothing().when(roleService).assignRole(eq(1L), eq(role.getUuid()), eq("test-tenant-uuid"));
 
-        mockMvc.perform(post("/role/assign")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        mockMvc.perform(post("/api/role/{roleUuid}/assign", role.getUuid())
+                        .param("userId", "1")
+                        .param("tenantUuid", "test-tenant-uuid"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }
 
     @Test
     void testRemoveRoleFromUser() throws Exception {
-        mockMvc.perform(delete("/role/unassign")
+        Mockito.doNothing().when(roleService).revokeRole(eq(1L), eq(role.getUuid()), eq("test-tenant-uuid"));
+
+        mockMvc.perform(post("/api/role/{roleUuid}/revoke", role.getUuid())
                         .param("userId", "1")
-                        .param("roleUuid", role.getUuid()))
+                        .param("tenantUuid", "test-tenant-uuid"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
     }

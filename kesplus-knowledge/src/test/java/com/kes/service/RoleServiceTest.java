@@ -1,7 +1,5 @@
 package com.kes.service;
 
-import com.kes.dto.request.RoleCreateRequest;
-import com.kes.dto.request.RoleUpdateRequest;
 import com.kes.entity.Role;
 import com.kes.entity.UserRole;
 import com.kes.mapper.RoleMapper;
@@ -20,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,38 +34,25 @@ class RoleServiceTest {
     private RoleService roleService;
 
     private Role role;
-    private RoleCreateRequest createRequest;
-    private RoleUpdateRequest updateRequest;
 
     @BeforeEach
     void setUp() {
         role = new Role();
         role.setId(1L);
-        role.setUuid(UuidUtil.generate());
+        role.setUuid(UuidUtil.create());
         role.setName("Test Role");
         role.setCode("TEST_ROLE");
         role.setDescription("Test description");
-        role.setTenantUuid(UuidUtil.generate());
+        role.setTenantUuid(UuidUtil.create());
         role.setCreatedTime(LocalDateTime.now());
         role.setUpdatedTime(LocalDateTime.now());
-
-        createRequest = new RoleCreateRequest();
-        createRequest.setName("Test Role");
-        createRequest.setCode("TEST_ROLE");
-        createRequest.setDescription("Test description");
-        createRequest.setTenantUuid(UuidUtil.generate());
-
-        updateRequest = new RoleUpdateRequest();
-        updateRequest.setName("Updated Role");
-        updateRequest.setDescription("Updated description");
     }
 
     @Test
     void testCreateRole() {
         when(roleMapper.insert(any(Role.class))).thenReturn(1);
-        when(roleMapper.selectById(any(Long.class))).thenReturn(role);
 
-        Role result = roleService.create(createRequest);
+        Role result = roleService.create(role);
 
         assertNotNull(result);
         assertEquals("Test Role", result.getName());
@@ -75,30 +61,30 @@ class RoleServiceTest {
     }
 
     @Test
-    void testFindById() {
+    void testGetById() {
         when(roleMapper.selectById(eq(1L))).thenReturn(role);
 
-        Role result = roleService.findById(1L);
+        Role result = roleService.getById(1L);
 
         assertNotNull(result);
         assertEquals("Test Role", result.getName());
     }
 
     @Test
-    void testFindByUuid() {
-        when(roleMapper.selectOne(any())).thenReturn(role);
+    void testGetByUuid() {
+        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
 
-        Role result = roleService.findByUuid(role.getUuid());
+        Role result = roleService.getByUuid(role.getUuid());
 
         assertNotNull(result);
         assertEquals(role.getUuid(), result.getUuid());
     }
 
     @Test
-    void testFindAll() {
-        when(roleMapper.selectList(any())).thenReturn(Arrays.asList(role));
+    void testListByTenant() {
+        when(roleMapper.selectByTenantUuid(eq(role.getTenantUuid()))).thenReturn(Arrays.asList(role));
 
-        List<Role> result = roleService.findAll();
+        List<Role> result = roleService.listByTenant(role.getTenantUuid());
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -106,10 +92,11 @@ class RoleServiceTest {
 
     @Test
     void testUpdateRole() {
-        when(roleMapper.selectOne(any())).thenReturn(tenant);
+        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
         when(roleMapper.updateById(any(Role.class))).thenReturn(1);
 
-        Role result = roleService.update(role.getUuid(), updateRequest);
+        role.setName("Updated Role");
+        Role result = roleService.update(role);
 
         assertNotNull(result);
         assertEquals("Updated Role", result.getName());
@@ -118,7 +105,7 @@ class RoleServiceTest {
 
     @Test
     void testDeleteRole() {
-        when(roleMapper.selectOne(any())).thenReturn(role);
+        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
         when(roleMapper.updateById(any(Role.class))).thenReturn(1);
 
         roleService.delete(role.getUuid());
@@ -127,20 +114,33 @@ class RoleServiceTest {
     }
 
     @Test
-    void testAssignRoleToUser() {
+    void testAssignRole() {
+        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
         when(userRoleMapper.insert(any(UserRole.class))).thenReturn(1);
 
-        roleService.assignRoleToUser(1L, role.getUuid());
+        roleService.assignRole(1L, role.getUuid(), role.getTenantUuid());
 
         verify(userRoleMapper, times(1)).insert(any(UserRole.class));
     }
 
     @Test
-    void testRemoveRoleFromUser() {
-        when(userRoleMapper.delete(any())).thenReturn(1);
+    void testRevokeRole() {
+        doNothing().when(userRoleMapper).deleteByUserIdAndRoleUuid(eq(1L), eq(role.getUuid()));
 
-        roleService.removeRoleFromUser(1L, role.getUuid());
+        roleService.revokeRole(1L, role.getUuid(), role.getTenantUuid());
 
-        verify(userRoleMapper, times(1)).delete(any());
+        verify(userRoleMapper, times(1)).deleteByUserIdAndRoleUuid(eq(1L), eq(role.getUuid()));
+    }
+
+    @Test
+    void testGetUserRoles() {
+        when(userRoleMapper.selectRoleUuidsByUserId(eq(1L))).thenReturn(Arrays.asList(role.getUuid()));
+        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
+
+        List<Role> result = roleService.getUserRoles(1L);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Test Role", result.get(0).getName());
     }
 }
