@@ -77,7 +77,7 @@ rag:
   embedding:
     model-type: huggingface
     base-url: https://api.siliconflow.cn/v1
-    api-key: ${SILICONFLOW_API_KEY:}
+    api-key: ${SILICONFLOW_API_KEY:sk-lmcyqeyyofuwrftczurmmsgskbllcdmlfteuavsnzrebktfj}
     model-name: BAAI/bge-m3
     batch-size: 32
     embedding-dimension: 1024
@@ -87,7 +87,7 @@ rag:
   llm:
     model-type: ollama
     base-url: http://localhost:11434
-    model-name: qwen2
+    model-name: llama3.2:3b-instruct-q2_K
     timeout-ms: 60000
     temperature: 0.7
     max-tokens: 4096
