@@ -95,4 +95,8 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
         kb.setUpdatedTime(LocalDateTime.now());
         baseMapper.updateById(kb);
     }
+
+    public java.util.List<KnowledgeBase> listByTenant(String tenantUuid) {
+        return baseMapper.selectByTenantUuid(tenantUuid);
+    }
 }

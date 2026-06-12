@@ -80,6 +80,17 @@ public class KnowledgeBaseController {
         return ResponseWrapper.success(responses);
     }
 
+    @GetMapping("/tenant/{tenantUuid}")
+    @Operation(summary = "按租户查询知识库列表", description = "根据租户UUID获取知识库列表")
+    public ResponseWrapper<List<KnowledgeBaseResponse>> listByTenant(
+            @Parameter(description = "租户UUID") @PathVariable String tenantUuid) {
+        List<KnowledgeBase> list = knowledgeBaseService.listByTenant(tenantUuid);
+        List<KnowledgeBaseResponse> responses = list.stream()
+            .map(KnowledgeBaseResponse::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseWrapper.success(responses);
+    }
+
     @GetMapping("/{uuid}")
     @Operation(summary = "查询知识库详情", description = "根据UUID获取知识库详情")
     public ResponseWrapper<KnowledgeBaseResponse> get(

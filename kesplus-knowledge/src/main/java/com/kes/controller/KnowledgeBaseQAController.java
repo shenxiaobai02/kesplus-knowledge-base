@@ -67,4 +67,12 @@ public class KnowledgeBaseQAController {
         List<QaResponse> history = knowledgeBaseQaService.getHistory(kbUuid, limit);
         return ResponseWrapper.success(history);
     }
+
+    @GetMapping("/count")
+    @Operation(summary = "查询问答数量", description = "获取知识库的问答记录数量")
+    public ResponseWrapper<Integer> getCount(
+            @Parameter(description = "知识库UUID") @PathVariable String kbUuid) {
+        int count = knowledgeBaseQaService.countByKbUuid(kbUuid);
+        return ResponseWrapper.success(count);
+    }
 }

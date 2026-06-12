@@ -22,13 +22,25 @@ class ModelIntegrationTest {
     @org.springframework.beans.factory.annotation.Value("${rag.embedding.api-key}")
     private String siliconFlowApiKey;
 
+    @org.springframework.beans.factory.annotation.Value("${rag.embedding.model-name}")
+    private String embeddingModelName;
+
+    @org.springframework.beans.factory.annotation.Value("${rag.embedding.model-type}")
+    private String embeddingModelType;
+
+    @org.springframework.beans.factory.annotation.Value("${rag.embedding.base-url}")
+    private String embeddingBaseUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${rag.llm.base-url}")
+    private String llmBaseUrl;
+
     @Test
     void testOllamaModelIntegration() {
         EmbeddingModel localModel = new EmbeddingModel();
         localModel.setModelName("quentinz/bge-small-zh-v1.5:latest");
         localModel.setEmbeddingDimension(512);
         localModel.setModelType("ollama");
-        localModel.setBaseUrl("http://localhost:11434");
+        localModel.setBaseUrl(llmBaseUrl);
 
         dev.langchain4j.model.embedding.EmbeddingModel langChainModel = 
             embeddingModelService.createLangChainEmbeddingModel(localModel);
@@ -48,10 +60,10 @@ class ModelIntegrationTest {
     @Test
     void testSiliconFlowModelIntegration() {
         EmbeddingModel remoteModel = new EmbeddingModel();
-        remoteModel.setModelName("BAAI/bge-m3");
+        remoteModel.setModelName(embeddingModelName);
         remoteModel.setEmbeddingDimension(1024);
-        remoteModel.setModelType("huggingface");
-        remoteModel.setBaseUrl("https://api.siliconflow.cn/v1");
+        remoteModel.setModelType(embeddingModelType);
+        remoteModel.setBaseUrl(embeddingBaseUrl);
         remoteModel.setApiKey(siliconFlowApiKey); // 从配置文件读取
 
         dev.langchain4j.model.embedding.EmbeddingModel langChainModel = 
@@ -72,10 +84,10 @@ class ModelIntegrationTest {
     @Test
     void testDocumentEmbedding() {
         EmbeddingModel model = new EmbeddingModel();
-        model.setModelName("BAAI/bge-m3");
+        model.setModelName(embeddingModelName);
         model.setEmbeddingDimension(1024);
-        model.setModelType("huggingface");
-        model.setBaseUrl("https://api.siliconflow.cn/v1");
+        model.setModelType(embeddingModelType);
+        model.setBaseUrl(embeddingBaseUrl);
         model.setApiKey(siliconFlowApiKey); // 从配置文件读取
 
         dev.langchain4j.model.embedding.EmbeddingModel langChainModel = 

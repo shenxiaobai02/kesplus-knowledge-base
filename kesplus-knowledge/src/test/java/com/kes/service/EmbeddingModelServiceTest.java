@@ -1,30 +1,22 @@
 package com.kes.service;
 
 import com.kes.entity.EmbeddingModel;
-import com.kes.mapper.EmbeddingModelMapper;
 import com.kes.util.UuidUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 class EmbeddingModelServiceTest {
 
-    @Mock
-    private EmbeddingModelMapper embeddingModelMapper;
-
-    @InjectMocks
+    @Autowired
     private EmbeddingModelService embeddingModelService;
 
     private EmbeddingModel model;
@@ -32,42 +24,27 @@ class EmbeddingModelServiceTest {
     @BeforeEach
     void setUp() {
         model = new EmbeddingModel();
-        model.setId(1L);
-        model.setUuid(UuidUtil.create());
         model.setModelName("BAAI/bge-m3");
         model.setEmbeddingDimension(1024);
         model.setModelType("huggingface");
         model.setBaseUrl("https://api.siliconflow.cn/v1");
         model.setIsActive(true);
-        model.setCreatedTime(LocalDateTime.now());
-        model.setUpdatedTime(LocalDateTime.now());
-    }
-
-    @Test
-    void testCreateModel() {
-        when(embeddingModelMapper.insert(any(EmbeddingModel.class))).thenReturn(1);
-
-        EmbeddingModel result = embeddingModelService.create(model);
-
-        assertNotNull(result);
-        assertEquals("BAAI/bge-m3", result.getModelName());
-        assertEquals(1024, result.getEmbeddingDimension());
-        verify(embeddingModelMapper, times(1)).insert(any(EmbeddingModel.class));
     }
 
     @Test
     void testGetByUuid() {
-        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
+        EmbeddingModel created = embeddingModelService.create(model);
 
-        EmbeddingModel result = embeddingModelService.getByUuid(model.getUuid());
+        EmbeddingModel result = embeddingModelService.getByUuid(created.getUuid());
 
         assertNotNull(result);
-        assertEquals(model.getUuid(), result.getUuid());
+        assertEquals(created.getUuid(), result.getUuid());
+        assertEquals("BAAI/bge-m3", result.getModelName());
     }
 
     @Test
     void testGetByModelName() {
-        when(embeddingModelMapper.selectByModelName(eq("BAAI/bge-m3"))).thenReturn(model);
+        embeddingModelService.create(model);
 
         EmbeddingModel result = embeddingModelService.getByModelName("BAAI/bge-m3");
 
@@ -77,44 +54,73 @@ class EmbeddingModelServiceTest {
 
     @Test
     void testGetByDimension() {
-        when(embeddingModelMapper.selectByDimension(eq(1024))).thenReturn(Arrays.asList(model));
+        embeddingModelService.create(model);
+
+        EmbeddingModel model2 = new EmbeddingModel();
+        model2.setModelName("text-embedding-3-small");
+        model2.setEmbeddingDimension(1536);
+        model2.setModelType("openai");
+        model2.setIsActive(true);
+        embeddingModelService.create(model2);
 
         List<EmbeddingModel> result = embeddingModelService.getByDimension(1024);
 
         assertNotNull(result);
         assertEquals(1, result.size());
+        assertEquals("BAAI/bge-m3", result.get(0).getModelName());
     }
 
     @Test
     void testGetActiveModels() {
-        when(embeddingModelMapper.selectActiveModels()).thenReturn(Arrays.asList(model));
+        embeddingModelService.create(model);
+
+        EmbeddingModel model2 = new EmbeddingModel();
+        model2.setModelName("inactive-model");
+        model2.setEmbeddingDimension(768);
+        model2.setModelType("ollama");
+        model2.setIsActive(false);
+        embeddingModelService.create(model2);
 
         List<EmbeddingModel> result = embeddingModelService.getActiveModels();
 
         assertNotNull(result);
         assertEquals(1, result.size());
+        assertTrue(result.get(0).getIsActive());
     }
 
     @Test
     void testUpdateModel() {
-        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
-        when(embeddingModelMapper.updateById(any(EmbeddingModel.class))).thenReturn(1);
+        EmbeddingModel created = embeddingModelService.create(model);
 
-        model.setModelName("Updated Model");
-        EmbeddingModel result = embeddingModelService.update(model);
+        created.setModelName("Updated Model");
+        created.setBaseUrl("https://api.new-url.com");
+        EmbeddingModel result = embeddingModelService.update(created);
 
         assertNotNull(result);
         assertEquals("Updated Model", result.getModelName());
-        verify(embeddingModelMapper, times(1)).updateById(any(EmbeddingModel.class));
+        assertEquals("https://api.new-url.com", result.getBaseUrl());
+    }
+
+    @Test
+    void testUpdateModelNotFound() {
+        model.setUuid(UuidUtil.create());
+
+        assertThrows(RuntimeException.class, () -> embeddingModelService.update(model));
     }
 
     @Test
     void testDeleteModel() {
-        when(embeddingModelMapper.selectByUuid(eq(model.getUuid()))).thenReturn(model);
-        when(embeddingModelMapper.deleteById(eq(1L))).thenReturn(1);
+        EmbeddingModel created = embeddingModelService.create(model);
+        Long id = created.getId();
 
-        embeddingModelService.delete(model.getUuid());
+        embeddingModelService.delete(created.getUuid());
 
-        verify(embeddingModelMapper, times(1)).deleteById(eq(1L));
+        EmbeddingModel result = embeddingModelService.getById(id);
+        assertNull(result);
+    }
+
+    @Test
+    void testDeleteModelNotFound() {
+        assertDoesNotThrow(() -> embeddingModelService.delete(UuidUtil.create()));
     }
 }

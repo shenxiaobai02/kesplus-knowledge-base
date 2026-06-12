@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,14 +93,22 @@ public class EmbeddingRagService {
 
     public List<KnowledgeBaseEmbedding> retrieve(KnowledgeBase kb, String query, EmbeddingModel embeddingModel) {
         String tableName = dynamicTableService.getTableName(kb.getEmbeddingDimension());
+        
+        try {
+            dynamicTableService.ensureVectorExtension();
+            dynamicTableService.createTableIfNotExists(kb.getEmbeddingDimension());
+        } catch (SQLException e) {
+            log.warn("Failed to ensure table exists", e);
+        }
 
         Embedding queryEmbedding = embeddingModel.embed(query).content();
         float[] queryVector = queryEmbedding.vector();
+        com.pgvector.PGvector pgVector = new com.pgvector.PGvector(queryVector);
 
         int maxResults = kb.getRetrieveMaxResults() != null ? kb.getRetrieveMaxResults() : ragConfig.getMaxRetrieveResults();
         double minScore = kb.getRetrieveMinScore() != null ? kb.getRetrieveMinScore() : ragConfig.getMinScore();
 
-        return embeddingMapper.retrieve(tableName, kb.getUuid(), queryVector, minScore, maxResults);
+        return embeddingMapper.retrieve(tableName, kb.getUuid(), pgVector, minScore, maxResults);
     }
 
     @Transactional

@@ -1,118 +1,156 @@
 package com.kes.service;
 
+import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseItem;
-import com.kes.mapper.KnowledgeBaseItemMapper;
+import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.util.UuidUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 class KnowledgeBaseItemServiceTest {
 
-    @Mock
-    private KnowledgeBaseItemMapper itemMapper;
-
-    @InjectMocks
+    @Autowired
     private KnowledgeBaseItemService itemService;
 
-    private KnowledgeBaseItem item;
+    @Autowired
+    private KnowledgeBaseMapper knowledgeBaseMapper;
+
+    private KnowledgeBase kb;
+    private String kbUuid;
 
     @BeforeEach
     void setUp() {
-        item = new KnowledgeBaseItem();
-        item.setId(1L);
-        item.setUuid(UuidUtil.create());
-        item.setKbId(1L);
-        item.setKbUuid(UuidUtil.create());
-        item.setTitle("Test Item");
-        item.setBrief("Test brief");
-        item.setCreatedTime(LocalDateTime.now());
-        item.setUpdatedTime(LocalDateTime.now());
+        kb = new KnowledgeBase();
+        kb.setTitle("Test KB");
+        kb.setRemark("Test remark");
+        kb.setIsPublic(false);
+        kb.setIsStrict(false);
+        kb.setEmbeddingDimension(1024);
+        kb.setIsDeleted(false);
+        kb.setUuid(UuidUtil.create());
+        
+        knowledgeBaseMapper.insert(kb);
+        kbUuid = kb.getUuid();
     }
 
     @Test
     void testGetByUuid() {
-        when(itemMapper.selectByUuid(eq(item.getUuid()))).thenReturn(item);
+        KnowledgeBaseItem item = itemService.create(kbUuid, "Test Item", "Test brief", "Test remark");
 
         KnowledgeBaseItem result = itemService.getByUuid(item.getUuid());
 
         assertNotNull(result);
         assertEquals(item.getUuid(), result.getUuid());
+        assertEquals("Test Item", result.getTitle());
     }
 
     @Test
     void testListByKbUuid() {
-        when(itemMapper.selectByKbUuid(eq(item.getKbUuid()))).thenReturn(Arrays.asList(item));
+        itemService.create(kbUuid, "Test Item 1", "Brief 1", "Remark 1");
+        itemService.create(kbUuid, "Test Item 2", "Brief 2", "Remark 2");
 
-        List<KnowledgeBaseItem> result = itemService.listByKbUuid(item.getKbUuid());
+        List<KnowledgeBaseItem> result = itemService.listByKbUuid(kbUuid);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
     }
 
     @Test
     void testCreate() {
-        when(itemMapper.insert(any(KnowledgeBaseItem.class))).thenReturn(1);
-
-        KnowledgeBaseItem result = itemService.create(item.getKbUuid(), "Test Item", "Test brief", "Test remark");
+        KnowledgeBaseItem result = itemService.create(kbUuid, "Test Item", "Test brief", "Test remark");
 
         assertNotNull(result);
+        assertNotNull(result.getId());
+        assertNotNull(result.getUuid());
         assertEquals("Test Item", result.getTitle());
-        verify(itemMapper, times(1)).insert(any(KnowledgeBaseItem.class));
+        assertEquals("Test brief", result.getBrief());
+        assertFalse(result.getIsDeleted());
+    }
+
+    @Test
+    void testCreateWithNonExistentKb() {
+        assertThrows(RuntimeException.class, () -> 
+            itemService.create(UuidUtil.create(), "Test Item", "Test brief", "Test remark"));
     }
 
     @Test
     void testUpdate() {
-        when(itemMapper.selectByUuid(eq(item.getUuid()))).thenReturn(item);
-        when(itemMapper.updateById(any(KnowledgeBaseItem.class))).thenReturn(1);
+        KnowledgeBaseItem item = itemService.create(kbUuid, "Test Item", "Test brief", "Test remark");
 
-        item.setTitle("Updated Item");
-        KnowledgeBaseItem result = itemService.update(item);
+        KnowledgeBaseItem updateItem = new KnowledgeBaseItem();
+        updateItem.setUuid(item.getUuid());
+        updateItem.setTitle("Updated Item");
+        updateItem.setBrief("Updated brief");
+
+        KnowledgeBaseItem result = itemService.update(updateItem);
 
         assertNotNull(result);
         assertEquals("Updated Item", result.getTitle());
-        verify(itemMapper, times(1)).updateById(any(KnowledgeBaseItem.class));
+        assertEquals("Updated brief", result.getBrief());
+    }
+
+    @Test
+    void testUpdateNotFound() {
+        KnowledgeBaseItem item = new KnowledgeBaseItem();
+        item.setUuid(UuidUtil.create());
+        item.setTitle("Updated Item");
+
+        assertThrows(RuntimeException.class, () -> itemService.update(item));
     }
 
     @Test
     void testDelete() {
-        when(itemMapper.selectByUuid(eq(item.getUuid()))).thenReturn(item);
-        when(itemMapper.updateById(any(KnowledgeBaseItem.class))).thenReturn(1);
+        KnowledgeBaseItem item = itemService.create(kbUuid, "Test Item", "Test brief", "Test remark");
+        String uuid = item.getUuid();
 
-        itemService.delete(item.getUuid());
+        itemService.delete(uuid);
 
-        verify(itemMapper, times(1)).updateById(any(KnowledgeBaseItem.class));
+        KnowledgeBaseItem result = itemService.getByUuid(uuid);
+        assertTrue(result.getIsDeleted());
+    }
+
+    @Test
+    void testDeleteNotFound() {
+        assertDoesNotThrow(() -> itemService.delete(UuidUtil.create()));
     }
 
     @Test
     void testDeleteByKbUuid() {
-        when(itemMapper.selectByKbUuid(eq(item.getKbUuid()))).thenReturn(Arrays.asList(item));
-        when(itemMapper.updateById(any(KnowledgeBaseItem.class))).thenReturn(1);
+        itemService.create(kbUuid, "Test Item 1", "Brief 1", "Remark 1");
+        itemService.create(kbUuid, "Test Item 2", "Brief 2", "Remark 2");
 
-        itemService.deleteByKbUuid(item.getKbUuid());
+        itemService.deleteByKbUuid(kbUuid);
 
-        verify(itemMapper, times(1)).updateById(any(KnowledgeBaseItem.class));
+        List<KnowledgeBaseItem> items = itemService.listByKbUuid(kbUuid);
+        for (KnowledgeBaseItem item : items) {
+            assertTrue(item.getIsDeleted());
+        }
     }
 
     @Test
     void testCountByKbUuid() {
-        when(itemMapper.countByKbUuid(eq(item.getKbUuid()))).thenReturn(5);
+        itemService.create(kbUuid, "Test Item 1", "Brief 1", "Remark 1");
+        itemService.create(kbUuid, "Test Item 2", "Brief 2", "Remark 2");
+        itemService.create(kbUuid, "Test Item 3", "Brief 3", "Remark 3");
 
-        int count = itemService.countByKbUuid(item.getKbUuid());
+        int count = itemService.countByKbUuid(kbUuid);
 
-        assertEquals(5, count);
+        assertEquals(3, count);
+    }
+
+    @Test
+    void testCountByKbUuidEmpty() {
+        int count = itemService.countByKbUuid(kbUuid);
+
+        assertEquals(0, count);
     }
 }

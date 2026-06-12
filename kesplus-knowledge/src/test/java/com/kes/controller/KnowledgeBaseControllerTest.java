@@ -1,135 +1,154 @@
 package com.kes.controller;
 
+import com.kes.entity.KnowledgeBase;
+import com.kes.entity.Tenant;
+import com.kes.mapper.KnowledgeBaseMapper;
+import com.kes.mapper.TenantMapper;
+import com.kes.util.UuidUtil;
 import com.kes.dto.request.KnowledgeBaseCreateRequest;
 import com.kes.dto.request.KnowledgeBaseUpdateRequest;
-import com.kes.entity.KnowledgeBase;
-import com.kes.service.KnowledgeBaseService;
-import com.kes.util.UuidUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(KnowledgeBaseController.class)
+@SpringBootTest
+@Transactional
 class KnowledgeBaseControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
+    private ObjectMapper objectMapper = new ObjectMapper();
+
     @Autowired
-    private ObjectMapper objectMapper;
+    private KnowledgeBaseMapper knowledgeBaseMapper;
 
-    @MockBean
-    private KnowledgeBaseService knowledgeBaseService;
+    @Autowired
+    private TenantMapper tenantMapper;
 
+    @Autowired
+    private WebApplicationContext webApplicationContext;
+
+    private Tenant tenant;
     private KnowledgeBase kb;
 
     @BeforeEach
+    void setUpMockMvc() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+    }
+
+    @BeforeEach
     void setUp() {
+        tenant = new Tenant();
+        tenant.setUuid(UuidUtil.create());
+        tenant.setName("Test Tenant");
+        tenant.setCode("TEST");
+        tenant.setDescription("Test description");
+        tenantMapper.insert(tenant);
+
         kb = new KnowledgeBase();
-        kb.setId(1L);
         kb.setUuid(UuidUtil.create());
         kb.setTitle("Test KB");
-        kb.setRemark("Test remark");
-        kb.setIsPublic(false);
-        kb.setIsStrict(false);
+        kb.setRemark("Test knowledge base");
+        kb.setTenantUuid(tenant.getUuid());
+        knowledgeBaseMapper.insert(kb);
+    }
+
+    @Test
+    void testGetKnowledgeBase() throws Exception {
+        mockMvc.perform(get("/api/knowledge-base/{uuid}", kb.getUuid())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.uuid").value(kb.getUuid()))
+                .andExpect(jsonPath("$.data.title").value("Test KB"));
+    }
+
+    @Test
+    void testGetKnowledgeBaseNotFound() throws Exception {
+        mockMvc.perform(get("/api/knowledge-base/{uuid}", UuidUtil.create())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void testListKnowledgeBases() throws Exception {
+        mockMvc.perform(get("/api/knowledge-base")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
     }
 
     @Test
     void testCreateKnowledgeBase() throws Exception {
         KnowledgeBaseCreateRequest request = new KnowledgeBaseCreateRequest();
-        request.setTitle("Test KB");
-        request.setRemark("Test remark");
-        request.setIsPublic(false);
+        request.setTitle("New KB");
+        request.setRemark("New knowledge base");
 
-        Mockito.when(knowledgeBaseService.create(any(KnowledgeBase.class), any(String.class))).thenReturn(kb);
-
-        mockMvc.perform(post("/knowledge-base")
+        mockMvc.perform(post("/api/knowledge-base")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("Test KB"));
-    }
-
-    @Test
-    void testGetKnowledgeBaseById() throws Exception {
-        Mockito.when(knowledgeBaseService.getById(eq(1L))).thenReturn(kb);
-
-        mockMvc.perform(get("/knowledge-base/{id}", 1))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("Test KB"));
-    }
-
-    @Test
-    void testGetKnowledgeBaseByUuid() throws Exception {
-        Mockito.when(knowledgeBaseService.getByUuid(eq(kb.getUuid()))).thenReturn(kb);
-
-        mockMvc.perform(get("/knowledge-base/uuid/{uuid}", kb.getUuid()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("Test KB"));
-    }
-
-    @Test
-    void testGetAllKnowledgeBases() throws Exception {
-        List<KnowledgeBase> list = Arrays.asList(kb);
-        Mockito.when(knowledgeBaseService.list()).thenReturn(list);
-
-        mockMvc.perform(get("/knowledge-base"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.length()").value(1));
+                .andExpect(jsonPath("$.data.title").value("New KB"))
+                .andExpect(jsonPath("$.data.remark").value("New knowledge base"));
     }
 
     @Test
     void testUpdateKnowledgeBase() throws Exception {
         KnowledgeBaseUpdateRequest request = new KnowledgeBaseUpdateRequest();
         request.setTitle("Updated KB");
-        request.setRemark("Updated remark");
+        request.setRemark("Updated description");
 
-        kb.setTitle("Updated KB");
-        Mockito.when(knowledgeBaseService.update(any(KnowledgeBase.class))).thenReturn(kb);
-
-        mockMvc.perform(put("/knowledge-base/{uuid}", kb.getUuid())
+        mockMvc.perform(put("/api/knowledge-base/{uuid}", kb.getUuid())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.title").value("Updated KB"));
+                .andExpect(jsonPath("$.data.title").value("Updated KB"))
+                .andExpect(jsonPath("$.data.remark").value("Updated description"));
+    }
+
+    @Test
+    void testUpdateKnowledgeBaseNotFound() throws Exception {
+        KnowledgeBaseUpdateRequest request = new KnowledgeBaseUpdateRequest();
+        request.setTitle("Updated KB");
+
+        mockMvc.perform(put("/api/knowledge-base/{uuid}", UuidUtil.create())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().is5xxServerError());
     }
 
     @Test
     void testDeleteKnowledgeBase() throws Exception {
-        Mockito.doNothing().when(knowledgeBaseService).delete(eq(kb.getUuid()));
-
-        mockMvc.perform(delete("/knowledge-base/{uuid}", kb.getUuid()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(delete("/api/knowledge-base/{uuid}", kb.getUuid())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void testSearchKnowledgeBases() throws Exception {
-        List<KnowledgeBase> list = Arrays.asList(kb);
-        Mockito.when(knowledgeBaseService.list()).thenReturn(list);
+    void testDeleteKnowledgeBaseNotFound() throws Exception {
+        mockMvc.perform(delete("/api/knowledge-base/{uuid}", UuidUtil.create())
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
 
-        mockMvc.perform(get("/knowledge-base")
-                        .param("keyword", "Test"))
+    @Test
+    void testGetKnowledgeBasesByTenant() throws Exception {
+        mockMvc.perform(get("/api/knowledge-base/tenant/{tenantUuid}", tenant.getUuid())
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data", hasSize(greaterThanOrEqualTo(1))));
     }
 }

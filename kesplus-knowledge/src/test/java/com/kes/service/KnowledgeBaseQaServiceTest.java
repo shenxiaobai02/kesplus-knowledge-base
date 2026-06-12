@@ -1,55 +1,52 @@
 package com.kes.service;
 
 import com.kes.dto.response.QaResponse;
+import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseQa;
-import com.kes.mapper.KnowledgeBaseQaMapper;
+import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.util.UuidUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 class KnowledgeBaseQaServiceTest {
 
-    @Mock
-    private KnowledgeBaseQaMapper qaMapper;
-
-    @InjectMocks
+    @Autowired
     private KnowledgeBaseQaService qaService;
 
-    private KnowledgeBaseQa qa;
+    @Autowired
+    private KnowledgeBaseMapper knowledgeBaseMapper;
+
+    private KnowledgeBase kb;
+    private String kbUuid;
 
     @BeforeEach
     void setUp() {
-        qa = new KnowledgeBaseQa();
-        qa.setId(1L);
-        qa.setUuid(UuidUtil.create());
-        qa.setKbUuid(UuidUtil.create());
-        qa.setQuestion("What is AI?");
-        qa.setAnswer("AI is artificial intelligence");
-        qa.setPromptTokens(10);
-        qa.setAnswerTokens(15);
-        qa.setCreatedTime(LocalDateTime.now());
+        kb = new KnowledgeBase();
+        kb.setTitle("Test KB");
+        kb.setRemark("Test remark");
+        kb.setIsPublic(false);
+        kb.setIsStrict(false);
+        kb.setEmbeddingDimension(1024);
+        kb.setIsDeleted(false);
+        kb.setUuid(UuidUtil.create());
+        
+        knowledgeBaseMapper.insert(kb);
+        kbUuid = kb.getUuid();
     }
 
     @Test
     void testSaveQaRecord() {
-        when(qaMapper.insert(any(KnowledgeBaseQa.class))).thenReturn(1);
-
         KnowledgeBaseQa result = qaService.saveQaRecord(
-            qa.getKbUuid(),
+            kbUuid,
             "What is AI?",
             "AI is artificial intelligence",
             10,
@@ -57,28 +54,73 @@ class KnowledgeBaseQaServiceTest {
         );
 
         assertNotNull(result);
+        assertNotNull(result.getId());
+        assertNotNull(result.getUuid());
         assertEquals("What is AI?", result.getQuestion());
-        verify(qaMapper, times(1)).insert(any(KnowledgeBaseQa.class));
+        assertEquals("AI is artificial intelligence", result.getAnswer());
+        assertEquals(10, result.getPromptTokens());
+        assertEquals(15, result.getAnswerTokens());
+        assertFalse(result.getIsDeleted());
     }
 
     @Test
     void testGetHistory() {
-        when(qaMapper.selectByKbUuid(eq(qa.getKbUuid()))).thenReturn(Arrays.asList(qa));
+        qaService.saveQaRecord(kbUuid, "Question 1", "Answer 1", 10, 15);
+        qaService.saveQaRecord(kbUuid, "Question 2", "Answer 2", 12, 18);
+        qaService.saveQaRecord(kbUuid, "Question 3", "Answer 3", 8, 12);
 
-        List<QaResponse> result = qaService.getHistory(qa.getKbUuid(), 10);
+        List<QaResponse> result = qaService.getHistory(kbUuid, 10);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("What is AI?", result.get(0).getQuestion());
+        assertEquals(3, result.size());
+        assertEquals("Question 3", result.get(0).getQuestion());
+        assertEquals("Answer 3", result.get(0).getAnswer());
+        assertEquals("Question 1", result.get(2).getQuestion());
+        assertEquals("Answer 1", result.get(2).getAnswer());
+    }
+
+    @Test
+    void testGetHistoryWithLimit() {
+        qaService.saveQaRecord(kbUuid, "Question 1", "Answer 1", 10, 15);
+        qaService.saveQaRecord(kbUuid, "Question 2", "Answer 2", 12, 18);
+        qaService.saveQaRecord(kbUuid, "Question 3", "Answer 3", 8, 12);
+
+        List<QaResponse> result = qaService.getHistory(kbUuid, 2);
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void testGetHistoryEmpty() {
+        List<QaResponse> result = qaService.getHistory(kbUuid, 10);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
     }
 
     @Test
     void testGetById() {
-        when(qaMapper.selectById(eq(1L))).thenReturn(qa);
+        KnowledgeBaseQa saved = qaService.saveQaRecord(
+            kbUuid,
+            "What is AI?",
+            "AI is artificial intelligence",
+            10,
+            15
+        );
 
-        KnowledgeBaseQa result = qaService.getById(1L);
+        KnowledgeBaseQa result = qaService.getById(saved.getId());
 
         assertNotNull(result);
+        assertEquals(saved.getId(), result.getId());
         assertEquals("What is AI?", result.getQuestion());
+        assertEquals("AI is artificial intelligence", result.getAnswer());
+    }
+
+    @Test
+    void testGetByIdNotFound() {
+        KnowledgeBaseQa result = qaService.getById(999L);
+
+        assertNull(result);
     }
 }

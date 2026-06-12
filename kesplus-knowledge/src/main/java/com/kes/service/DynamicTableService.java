@@ -31,6 +31,8 @@ public class DynamicTableService {
             return;
         }
 
+        ensureVectorExtension();
+
         String tableSql = String.format("""
             CREATE TABLE IF NOT EXISTS %s (
                 id BIGSERIAL PRIMARY KEY,
@@ -55,6 +57,15 @@ public class DynamicTableService {
             stmt.execute(tableSql);
             stmt.execute(indexSql);
             log.info("Created embedding table: {}", tableName);
+        }
+    }
+
+    public void ensureVectorExtension() throws SQLException {
+        String sql = "CREATE EXTENSION IF NOT EXISTS vector";
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            log.debug("Ensured vector extension is available");
         }
     }
 

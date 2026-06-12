@@ -1,31 +1,22 @@
 package com.kes.service;
 
 import com.kes.entity.Tenant;
-import com.kes.mapper.TenantMapper;
 import com.kes.util.UuidUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 class TenantServiceTest {
 
-    @Mock
-    private TenantMapper tenantMapper;
-
-    @InjectMocks
+    @Autowired
     private TenantService tenantService;
 
     private Tenant tenant;
@@ -33,88 +24,106 @@ class TenantServiceTest {
     @BeforeEach
     void setUp() {
         tenant = new Tenant();
-        tenant.setId(1L);
-        tenant.setUuid(UuidUtil.create());
         tenant.setName("Test Tenant");
         tenant.setCode("TEST");
         tenant.setDescription("Test description");
-        tenant.setStatus("ACTIVE");
-        tenant.setCreatedTime(LocalDateTime.now());
-        tenant.setUpdatedTime(LocalDateTime.now());
     }
 
     @Test
     void testCreateTenant() {
-        when(tenantMapper.insert(any(Tenant.class))).thenReturn(1);
-
         Tenant result = tenantService.create(tenant);
 
         assertNotNull(result);
+        assertNotNull(result.getId());
+        assertNotNull(result.getUuid());
         assertEquals("Test Tenant", result.getName());
         assertEquals("TEST", result.getCode());
-        verify(tenantMapper, times(1)).insert(any(Tenant.class));
+        assertEquals("ACTIVE", result.getStatus());
+        assertFalse(result.getIsDeleted());
     }
 
     @Test
     void testGetById() {
-        when(tenantMapper.selectById(eq(1L))).thenReturn(tenant);
+        Tenant created = tenantService.create(tenant);
 
-        Tenant result = tenantService.getById(1L);
+        Tenant result = tenantService.getById(created.getId());
 
         assertNotNull(result);
+        assertEquals(created.getId(), result.getId());
         assertEquals("Test Tenant", result.getName());
     }
 
     @Test
     void testGetByUuid() {
-        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
+        Tenant created = tenantService.create(tenant);
 
-        Tenant result = tenantService.getByUuid(tenant.getUuid());
-
-        assertNotNull(result);
-        assertEquals(tenant.getUuid(), result.getUuid());
-    }
-
-    @Test
-    void testListAll() {
-        when(tenantMapper.selectAllActive()).thenReturn(Arrays.asList(tenant));
-
-        List<Tenant> result = tenantService.listAll();
+        Tenant result = tenantService.getByUuid(created.getUuid());
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-    }
-
-    @Test
-    void testUpdateTenant() {
-        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
-        when(tenantMapper.updateById(any(Tenant.class))).thenReturn(1);
-
-        tenant.setName("Updated Tenant");
-        Tenant result = tenantService.update(tenant);
-
-        assertNotNull(result);
-        assertEquals("Updated Tenant", result.getName());
-        verify(tenantMapper, times(1)).updateById(any(Tenant.class));
-    }
-
-    @Test
-    void testDeleteTenant() {
-        when(tenantMapper.selectByUuid(eq(tenant.getUuid()))).thenReturn(tenant);
-        when(tenantMapper.updateById(any(Tenant.class))).thenReturn(1);
-
-        tenantService.delete(tenant.getUuid());
-
-        verify(tenantMapper, times(1)).updateById(any(Tenant.class));
+        assertEquals(created.getUuid(), result.getUuid());
+        assertEquals("Test Tenant", result.getName());
     }
 
     @Test
     void testGetByCode() {
-        when(tenantMapper.selectByCode(eq("TEST"))).thenReturn(tenant);
+        tenantService.create(tenant);
 
         Tenant result = tenantService.getByCode("TEST");
 
         assertNotNull(result);
         assertEquals("TEST", result.getCode());
+        assertEquals("Test Tenant", result.getName());
+    }
+
+    @Test
+    void testListAll() {
+        tenantService.create(tenant);
+
+        Tenant tenant2 = new Tenant();
+        tenant2.setName("Test Tenant 2");
+        tenant2.setCode("TEST2");
+        tenant2.setDescription("Test description 2");
+        tenantService.create(tenant2);
+
+        List<Tenant> result = tenantService.listAll();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void testUpdateTenant() {
+        Tenant created = tenantService.create(tenant);
+
+        created.setName("Updated Tenant");
+        created.setDescription("Updated description");
+        Tenant result = tenantService.update(created);
+
+        assertNotNull(result);
+        assertEquals("Updated Tenant", result.getName());
+        assertEquals("Updated description", result.getDescription());
+    }
+
+    @Test
+    void testUpdateTenantNotFound() {
+        tenant.setUuid(UuidUtil.create());
+        
+        assertThrows(RuntimeException.class, () -> tenantService.update(tenant));
+    }
+
+    @Test
+    void testDeleteTenant() {
+        Tenant created = tenantService.create(tenant);
+        String uuid = created.getUuid();
+
+        tenantService.delete(uuid);
+
+        Tenant result = tenantService.getByUuid(uuid);
+        assertTrue(result.getIsDeleted());
+    }
+
+    @Test
+    void testDeleteTenantNotFound() {
+        assertDoesNotThrow(() -> tenantService.delete(UuidUtil.create()));
     }
 }

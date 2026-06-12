@@ -2,145 +2,179 @@ package com.kes.service;
 
 import com.kes.entity.Role;
 import com.kes.entity.UserRole;
-import com.kes.mapper.RoleMapper;
 import com.kes.mapper.UserRoleMapper;
 import com.kes.util.UuidUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@Transactional
 class RoleServiceTest {
 
-    @Mock
-    private RoleMapper roleMapper;
-
-    @Mock
-    private UserRoleMapper userRoleMapper;
-
-    @InjectMocks
+    @Autowired
     private RoleService roleService;
 
+    @Autowired
+    private UserRoleMapper userRoleMapper;
+
     private Role role;
+    private String tenantUuid;
 
     @BeforeEach
     void setUp() {
+        tenantUuid = UuidUtil.create();
+        
         role = new Role();
-        role.setId(1L);
-        role.setUuid(UuidUtil.create());
         role.setName("Test Role");
         role.setCode("TEST_ROLE");
         role.setDescription("Test description");
-        role.setTenantUuid(UuidUtil.create());
-        role.setCreatedTime(LocalDateTime.now());
-        role.setUpdatedTime(LocalDateTime.now());
+        role.setTenantUuid(tenantUuid);
     }
 
     @Test
     void testCreateRole() {
-        when(roleMapper.insert(any(Role.class))).thenReturn(1);
-
         Role result = roleService.create(role);
 
         assertNotNull(result);
+        assertNotNull(result.getId());
+        assertNotNull(result.getUuid());
         assertEquals("Test Role", result.getName());
         assertEquals("TEST_ROLE", result.getCode());
-        verify(roleMapper, times(1)).insert(any(Role.class));
+        assertFalse(result.getIsDeleted());
     }
 
     @Test
     void testGetById() {
-        when(roleMapper.selectById(eq(1L))).thenReturn(role);
+        Role created = roleService.create(role);
 
-        Role result = roleService.getById(1L);
+        Role result = roleService.getById(created.getId());
 
         assertNotNull(result);
+        assertEquals(created.getId(), result.getId());
         assertEquals("Test Role", result.getName());
     }
 
     @Test
     void testGetByUuid() {
-        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
+        Role created = roleService.create(role);
 
-        Role result = roleService.getByUuid(role.getUuid());
+        Role result = roleService.getByUuid(created.getUuid());
 
         assertNotNull(result);
-        assertEquals(role.getUuid(), result.getUuid());
+        assertEquals(created.getUuid(), result.getUuid());
+        assertEquals("Test Role", result.getName());
     }
 
     @Test
     void testListByTenant() {
-        when(roleMapper.selectByTenantUuid(eq(role.getTenantUuid()))).thenReturn(Arrays.asList(role));
+        roleService.create(role);
 
-        List<Role> result = roleService.listByTenant(role.getTenantUuid());
+        Role role2 = new Role();
+        role2.setName("Test Role 2");
+        role2.setCode("TEST_ROLE_2");
+        role2.setDescription("Test description 2");
+        role2.setTenantUuid(tenantUuid);
+        roleService.create(role2);
+
+        List<Role> result = roleService.listByTenant(tenantUuid);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
     }
 
     @Test
     void testUpdateRole() {
-        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
-        when(roleMapper.updateById(any(Role.class))).thenReturn(1);
+        Role created = roleService.create(role);
 
-        role.setName("Updated Role");
-        Role result = roleService.update(role);
+        created.setName("Updated Role");
+        created.setDescription("Updated description");
+        Role result = roleService.update(created);
 
         assertNotNull(result);
         assertEquals("Updated Role", result.getName());
-        verify(roleMapper, times(1)).updateById(any(Role.class));
+        assertEquals("Updated description", result.getDescription());
+    }
+
+    @Test
+    void testUpdateRoleNotFound() {
+        role.setUuid(UuidUtil.create());
+
+        assertThrows(RuntimeException.class, () -> roleService.update(role));
     }
 
     @Test
     void testDeleteRole() {
-        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
-        when(roleMapper.updateById(any(Role.class))).thenReturn(1);
+        Role created = roleService.create(role);
+        String uuid = created.getUuid();
 
-        roleService.delete(role.getUuid());
+        roleService.delete(uuid);
 
-        verify(roleMapper, times(1)).updateById(any(Role.class));
+        Role result = roleService.getByUuid(uuid);
+        assertTrue(result.getIsDeleted());
+    }
+
+    @Test
+    void testDeleteRoleNotFound() {
+        assertDoesNotThrow(() -> roleService.delete(UuidUtil.create()));
     }
 
     @Test
     void testAssignRole() {
-        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
-        when(userRoleMapper.insert(any(UserRole.class))).thenReturn(1);
+        Role created = roleService.create(role);
 
-        roleService.assignRole(1L, role.getUuid(), role.getTenantUuid());
+        roleService.assignRole(1L, created.getUuid(), tenantUuid);
 
-        verify(userRoleMapper, times(1)).insert(any(UserRole.class));
+        List<String> roleUuids = userRoleMapper.selectRoleUuidsByUserId(1L);
+        assertFalse(roleUuids.isEmpty());
+        assertEquals(created.getUuid(), roleUuids.get(0));
+    }
+
+    @Test
+    void testAssignRoleAlreadyExists() {
+        Role created = roleService.create(role);
+
+        roleService.assignRole(1L, created.getUuid(), tenantUuid);
+        roleService.assignRole(1L, created.getUuid(), tenantUuid);
+
+        List<String> roleUuids = userRoleMapper.selectRoleUuidsByUserId(1L);
+        assertEquals(1, roleUuids.size());
     }
 
     @Test
     void testRevokeRole() {
-        doNothing().when(userRoleMapper).deleteByUserIdAndRoleUuid(eq(1L), eq(role.getUuid()));
+        Role created = roleService.create(role);
+        roleService.assignRole(1L, created.getUuid(), tenantUuid);
 
-        roleService.revokeRole(1L, role.getUuid(), role.getTenantUuid());
+        roleService.revokeRole(1L, created.getUuid(), tenantUuid);
 
-        verify(userRoleMapper, times(1)).deleteByUserIdAndRoleUuid(eq(1L), eq(role.getUuid()));
+        List<String> roleUuids = userRoleMapper.selectRoleUuidsByUserId(1L);
+        assertTrue(roleUuids.isEmpty());
     }
 
     @Test
     void testGetUserRoles() {
-        when(userRoleMapper.selectRoleUuidsByUserId(eq(1L))).thenReturn(Arrays.asList(role.getUuid()));
-        when(roleMapper.selectByUuid(eq(role.getUuid()))).thenReturn(role);
+        Role created = roleService.create(role);
+        roleService.assignRole(1L, created.getUuid(), tenantUuid);
 
         List<Role> result = roleService.getUserRoles(1L);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("Test Role", result.get(0).getName());
+    }
+
+    @Test
+    void testGetUserRolesEmpty() {
+        List<Role> result = roleService.getUserRoles(999L);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
     }
 }

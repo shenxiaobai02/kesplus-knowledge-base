@@ -17,6 +17,6 @@ public interface TenantMapper extends BaseMapper<Tenant> {
     @Select("SELECT * FROM kes_tenant WHERE code = #{code}")
     Tenant selectByCode(@Param("code") String code);
 
-    @Select("SELECT * FROM kes_tenant WHERE is_deleted = 0 ORDER BY created_time DESC")
+    @Select("SELECT * FROM kes_tenant WHERE is_deleted = FALSE ORDER BY created_time DESC")
     List<Tenant> selectAllActive();
 }

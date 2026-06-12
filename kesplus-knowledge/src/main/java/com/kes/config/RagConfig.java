@@ -8,52 +8,53 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "rag")
 public class RagConfig {
-    private int maxSegmentSize = 1000;
-    private int maxRetrieveResults = 5;
-    private double minScore = 0.6;
-    private boolean enableGraphRag = true;
-    private boolean enableSelfRag = false;
-    private boolean enableCache = true;
+    private Integer maxSegmentSize;
+    private Integer maxRetrieveResults;
+    private Double minScore;
+    private Boolean enableGraphRag;
+    private Boolean enableSelfRag;
+    private Boolean enableCache;
 
-    private RetrieverConfig retriever = new RetrieverConfig();
-    private EmbeddingConfig embedding = new EmbeddingConfig();
-    private CacheConfig cache = new CacheConfig();
-    private LlmConfig llm = new LlmConfig();
+    private RetrieverConfig retriever;
+    private EmbeddingConfig embedding;
+    private CacheConfig cache;
+    private LlmConfig llm;
 
     @Data
     public static class RetrieverConfig {
-        private int timeoutMs = 30000;
-        private int retryCount = 3;
-        private int batchSize = 100;
-        private int parallelism = 4;
+        private Integer timeoutMs;
+        private Integer retryCount;
+        private Integer batchSize;
+        private Integer parallelism;
     }
 
     @Data
     public static class EmbeddingConfig {
-        private String modelType = "huggingface";
-        private String baseUrl = "https://api.siliconflow.cn/v1";
-        private String apiKey = "";
-        private String modelName = "BAAI/bge-m3";
-        private int batchSize = 32;
-        private int embeddingDimension = 1024;
-        private String pooling = "mean";
-        private boolean normalize = true;
+        private String modelType;
+        private String baseUrl;
+        private String apiKey;
+        private String modelName;
+        private Integer batchSize;
+        private Integer embeddingDimension;
+        private String pooling;
+        private Boolean normalize;
     }
 
     @Data
     public static class CacheConfig {
-        private long ttlMinutes = 30;
-        private int maxSize = 10000;
-        private String cacheType = "caffeine";
+        private Long ttlMinutes;
+        private Integer maxSize;
+        private String cacheType;
     }
 
     @Data
     public static class LlmConfig {
-        private String modelType = "ollama";
-        private String baseUrl = "http://localhost:11434";
-        private String modelName = "qwen2";
-        private int timeoutMs = 60000;
-        private double temperature = 0.7;
-        private int maxTokens = 4096;
+        private String modelType;
+        private String baseUrl;
+        private String apiKey;
+        private String modelName;
+        private Integer timeoutMs;
+        private Double temperature;
+        private Integer maxTokens;
     }
 }

@@ -113,7 +113,7 @@ class EmbeddingRagServiceTest {
         when(mockLangChainModel.embed(anyString())).thenReturn(mockResponse);
 
         List<KnowledgeBaseEmbedding> mockResults = Arrays.asList(new KnowledgeBaseEmbedding());
-        when(embeddingMapper.retrieve(eq("kes_embedding_1024"), eq(kb.getUuid()), any(float[].class), eq(0.6), eq(5)))
+        when(embeddingMapper.retrieve(eq("kes_embedding_1024"), eq(kb.getUuid()), any(com.pgvector.PGvector.class), eq(0.6), eq(5)))
             .thenReturn(mockResults);
 
         List<KnowledgeBaseEmbedding> results = embeddingRagService.retrieve(kb, "test query", mockLangChainModel);

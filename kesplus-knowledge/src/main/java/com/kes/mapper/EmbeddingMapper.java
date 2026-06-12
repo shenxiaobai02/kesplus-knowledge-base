@@ -32,15 +32,15 @@ public interface EmbeddingMapper {
     @Delete("DELETE FROM ${tableName} WHERE kb_item_uuid = #{kbItemUuid}")
     void deleteByKbItemUuid(@Param("tableName") String tableName, @Param("kbItemUuid") String kbItemUuid);
 
-    @Select("SELECT *, 1 - (embedding <=> CAST(ARRAY[${queryEmbedding}] AS vector)) AS score " +
+    @Select("SELECT *, 1 - (embedding <=> #{queryEmbedding}::vector) AS score " +
             "FROM ${tableName} " +
             "WHERE kb_uuid = #{kbUuid} " +
-            "AND 1 - (embedding <=> CAST(ARRAY[${queryEmbedding}] AS vector)) >= #{minScore} " +
+            "AND 1 - (embedding <=> #{queryEmbedding}::vector) >= #{minScore} " +
             "ORDER BY score DESC " +
             "LIMIT #{maxResults}")
     List<KnowledgeBaseEmbedding> retrieve(@Param("tableName") String tableName, 
                                           @Param("kbUuid") String kbUuid,
-                                          @Param("queryEmbedding") float[] queryEmbedding,
+                                          @Param("queryEmbedding") com.pgvector.PGvector queryEmbedding,
                                           @Param("minScore") double minScore,
                                           @Param("maxResults") int maxResults);
 }

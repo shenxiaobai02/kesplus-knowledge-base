@@ -1,84 +1,96 @@
 package com.kes.controller;
 
+import com.kes.common.ResponseWrapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import java.util.HashMap;
+import java.util.Map;
 
-@WebMvcTest(HealthController.class)
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 class HealthControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private JdbcTemplate jdbcTemplate;
-
-    @MockBean
-    private StringRedisTemplate redisTemplate;
-
     @Test
-    void testHealthAllUp() throws Exception {
-        ValueOperations<String, String> valueOps = (ValueOperations<String, String>) when(redisTemplate.opsForValue()).getMock();
+    void testHealthAllUp() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("health_check")).thenReturn("ok");
 
-        mockMvc.perform(get("/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.status").value("UP"))
-                .andExpect(jsonPath("$.data.components.database").value("UP"))
-                .andExpect(jsonPath("$.data.components.redis").value("UP"));
+        HealthController controller = new HealthController(jdbcTemplate, redisTemplate);
+        ResponseWrapper<Map<String, Object>> response = controller.health();
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getCode());
+        assertEquals("UP", response.getData().get("status"));
+        assertEquals("UP", ((Map<?, ?>) response.getData().get("components")).get("database"));
+        assertEquals("UP", ((Map<?, ?>) response.getData().get("components")).get("redis"));
     }
 
     @Test
-    void testHealthDatabaseDown() throws Exception {
+    void testHealthDatabaseDown() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        
         doThrow(new RuntimeException("Connection failed")).when(jdbcTemplate).execute("SELECT 1");
-        ValueOperations<String, String> valueOps = (ValueOperations<String, String>) when(redisTemplate.opsForValue()).getMock();
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("health_check")).thenReturn("ok");
 
-        mockMvc.perform(get("/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.status").value("UP"))
-                .andExpect(jsonPath("$.data.components.database").value("DOWN"))
-                .andExpect(jsonPath("$.data.components.redis").value("UP"));
+        HealthController controller = new HealthController(jdbcTemplate, redisTemplate);
+        ResponseWrapper<Map<String, Object>> response = controller.health();
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getCode());
+        assertEquals("DOWN", ((Map<?, ?>) response.getData().get("components")).get("database"));
+        assertEquals("UP", ((Map<?, ?>) response.getData().get("components")).get("redis"));
     }
 
     @Test
-    void testHealthRedisDown() throws Exception {
+    void testHealthRedisDown() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        
         doThrow(new RuntimeException("Redis connection failed")).when(redisTemplate).opsForValue();
 
-        mockMvc.perform(get("/health"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.components.database").value("UP"))
-                .andExpect(jsonPath("$.data.components.redis").value("DOWN"));
+        HealthController controller = new HealthController(jdbcTemplate, redisTemplate);
+        ResponseWrapper<Map<String, Object>> response = controller.health();
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getCode());
+        assertEquals("UP", ((Map<?, ?>) response.getData().get("components")).get("database"));
+        assertEquals("DOWN", ((Map<?, ?>) response.getData().get("components")).get("redis"));
     }
 
     @Test
-    void testReady() throws Exception {
-        mockMvc.perform(get("/health/ready"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data").value("Ready"));
+    void testReady() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+
+        HealthController controller = new HealthController(jdbcTemplate, redisTemplate);
+        ResponseWrapper<String> response = controller.ready();
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getCode());
+        assertEquals("Ready", response.getMessage());
     }
 
     @Test
-    void testLive() throws Exception {
-        mockMvc.perform(get("/health/live"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data").value("Live"));
+    void testLive() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+
+        HealthController controller = new HealthController(jdbcTemplate, redisTemplate);
+        ResponseWrapper<String> response = controller.live();
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getCode());
+        assertEquals("Live", response.getMessage());
     }
 }

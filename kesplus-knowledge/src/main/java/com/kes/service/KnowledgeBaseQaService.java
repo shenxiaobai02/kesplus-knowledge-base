@@ -184,6 +184,10 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
         return responses;
     }
 
+    public int countByKbUuid(String kbUuid) {
+        return baseMapper.countByKbUuid(kbUuid);
+    }
+
     @Transactional
     public KnowledgeBaseQa saveQaRecord(String kbUuid, String question, String answer,
                                          Integer promptTokens, Integer answerTokens) {
