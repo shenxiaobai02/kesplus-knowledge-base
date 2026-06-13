@@ -6,8 +6,11 @@ import com.kes.dto.response.QaResponse;
 import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseEmbedding;
 import com.kes.entity.KnowledgeBaseQa;
+import com.kes.exception.BaseException;
+import com.kes.exception.ErrorCode;
 import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.mapper.KnowledgeBaseQaMapper;
+import com.kes.util.ThreadContext;
 import com.kes.util.UuidUtil;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -48,6 +51,9 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
     @Autowired(required = false)
     private StreamingChatModel streamingChatModel;
 
+    @Autowired
+    private KnowledgeBasePermissionService permissionService;
+
     private static final String RAG_PROMPT_TEMPLATE = """
         你是一个知识库问答助手，根据提供的参考文档回答用户问题。
 
@@ -62,19 +68,27 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
         """;
 
     public QaResponse qa(String kbUuid, String question, Integer maxResults, Double minScore, Double temperature) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
         KnowledgeBase kb = knowledgeBaseMapper.selectByUuid(kbUuid);
         if (kb == null) {
-            throw new RuntimeException("知识库不存在");
+            throw new BaseException(ErrorCode.KNOWLEDGE_BASE_NOT_FOUND, "知识库不存在");
+        }
+
+        // 权限校验（双重校验，Controller已校验，Service层再次校验确保安全）
+        if (!permissionService.hasPermission(userId, kbUuid, "READ")) {
+            log.warn("User {} attempted to access knowledge base {} without permission", userId, kbUuid);
+            throw new BaseException(ErrorCode.FORBIDDEN, "无权限访问该知识库");
         }
 
         com.kes.entity.EmbeddingModel entityModel = embeddingModelService.getByUuid(kb.getEmbeddingModelUuid());
         if (entityModel == null) {
-            throw new RuntimeException("嵌入模型不存在");
+            throw new BaseException(ErrorCode.INTERNAL_ERROR, "嵌入模型不存在");
         }
         
         EmbeddingModel embeddingModel = embeddingModelService.createLangChainEmbeddingModel(entityModel);
         if (embeddingModel == null) {
-            throw new RuntimeException("嵌入模型创建失败");
+            throw new BaseException(ErrorCode.INTERNAL_ERROR, "嵌入模型创建失败");
         }
 
         List<KnowledgeBaseEmbedding> retrieved = embeddingRagService.retrieve(kb, question, embeddingModel);
@@ -90,16 +104,26 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
         QaResponse response = QaResponse.fromEntity(qaRecord);
         response.setReferences(buildReferences(retrieved));
 
-        log.info("QA completed for kb: {}, question: {}", kbUuid, question);
+        log.info("QA completed for kb: {}, question: {} by user: {}", kbUuid, question, userId);
         return response;
     }
 
     public void streamQa(String kbUuid, String question, Integer maxResults, Double minScore,
                          Double temperature, SseEmitter emitter) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
         try {
             KnowledgeBase kb = knowledgeBaseMapper.selectByUuid(kbUuid);
             if (kb == null) {
                 emitter.send(SseEmitter.event().name("error").data("知识库不存在"));
+                emitter.complete();
+                return;
+            }
+
+            // 权限校验（双重校验）
+            if (!permissionService.hasPermission(userId, kbUuid, "READ")) {
+                log.warn("User {} attempted to stream access knowledge base {} without permission", userId, kbUuid);
+                emitter.send(SseEmitter.event().name("error").data("无权限访问该知识库"));
                 emitter.complete();
                 return;
             }
@@ -161,7 +185,7 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
 
             saveQaRecord(kbUuid, question, fullAnswer.toString(), promptTokens, answerTokens);
 
-            log.info("Stream QA completed for kb: {}, question: {}", kbUuid, question);
+            log.info("Stream QA completed for kb: {}, question: {} by user: {}", kbUuid, question, userId);
 
         } catch (Exception e) {
             log.error("Stream QA failed", e);
@@ -226,7 +250,7 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
 
     private String generateAnswer(String question, String context) {
         if (chatModel == null) {
-            throw new RuntimeException("LLM模型未配置");
+            throw new BaseException(ErrorCode.INTERNAL_ERROR, "LLM模型未配置");
         }
 
         String prompt = buildPrompt(question, context);

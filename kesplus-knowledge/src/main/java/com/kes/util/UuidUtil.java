@@ -39,9 +39,14 @@ public class UuidUtil {
 
     private static String encodeLong(long value) {
         StringBuilder sb = new StringBuilder();
+        long num = value;
         for (int i = 0; i < 6; i++) {
-            sb.append(ALPHABET.charAt((int) (value % ALPHABET_LENGTH)));
-            value = value / ALPHABET_LENGTH;
+            int index = (int) (num % ALPHABET_LENGTH);
+            if (index < 0) {
+                index += ALPHABET_LENGTH;
+            }
+            sb.append(ALPHABET.charAt(index));
+            num = num / ALPHABET_LENGTH;
         }
         return sb.reverse().toString();
     }

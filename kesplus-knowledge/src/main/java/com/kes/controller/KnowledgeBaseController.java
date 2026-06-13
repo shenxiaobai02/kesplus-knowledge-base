@@ -12,7 +12,9 @@ import com.kes.service.EmbeddingModelService;
 import com.kes.service.EmbeddingRagService;
 import com.kes.service.FileStorageService;
 import com.kes.service.KnowledgeBaseItemService;
+import com.kes.service.KnowledgeBasePermissionService;
 import com.kes.service.KnowledgeBaseService;
+import com.kes.util.ThreadContext;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,6 +54,9 @@ public class KnowledgeBaseController {
     @Autowired
     private SmartDocumentSplitter smartDocumentSplitter;
 
+    @Autowired
+    private KnowledgeBasePermissionService permissionService;
+
     @PostMapping
     @Operation(summary = "创建知识库", description = "创建一个新的知识库")
     public ResponseWrapper<KnowledgeBaseResponse> create(@Valid @RequestBody KnowledgeBaseCreateRequest request) {
@@ -72,9 +77,13 @@ public class KnowledgeBaseController {
     @GetMapping
     @Operation(summary = "查询知识库列表", description = "获取所有知识库列表")
     public ResponseWrapper<List<KnowledgeBaseResponse>> list() {
+        Long userId = ThreadContext.getCurrentUserId();
         List<KnowledgeBase> list = knowledgeBaseService.list();
-        List<KnowledgeBaseResponse> responses = list.stream()
-            .filter(kb -> !Boolean.TRUE.equals(kb.getIsDeleted()))
+        
+        // 根据用户权限过滤知识库列表
+        List<KnowledgeBase> accessibleList = permissionService.filterAccessibleKbs(userId, list);
+        
+        List<KnowledgeBaseResponse> responses = accessibleList.stream()
             .map(KnowledgeBaseResponse::fromEntity)
             .collect(Collectors.toList());
         return ResponseWrapper.success(responses);
@@ -84,8 +93,13 @@ public class KnowledgeBaseController {
     @Operation(summary = "按租户查询知识库列表", description = "根据租户UUID获取知识库列表")
     public ResponseWrapper<List<KnowledgeBaseResponse>> listByTenant(
             @Parameter(description = "租户UUID") @PathVariable String tenantUuid) {
+        Long userId = ThreadContext.getCurrentUserId();
         List<KnowledgeBase> list = knowledgeBaseService.listByTenant(tenantUuid);
-        List<KnowledgeBaseResponse> responses = list.stream()
+        
+        // 根据用户权限过滤知识库列表
+        List<KnowledgeBase> accessibleList = permissionService.filterAccessibleKbs(userId, list);
+        
+        List<KnowledgeBaseResponse> responses = accessibleList.stream()
             .map(KnowledgeBaseResponse::fromEntity)
             .collect(Collectors.toList());
         return ResponseWrapper.success(responses);
@@ -95,6 +109,14 @@ public class KnowledgeBaseController {
     @Operation(summary = "查询知识库详情", description = "根据UUID获取知识库详情")
     public ResponseWrapper<KnowledgeBaseResponse> get(
             @Parameter(description = "知识库UUID") @PathVariable String uuid) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "READ")) {
+            log.warn("User {} has no permission to read knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限访问该知识库");
+        }
+        
         KnowledgeBase kb = knowledgeBaseService.getByUuid(uuid);
         if (kb == null) {
             return ResponseWrapper.error("知识库不存在");
@@ -107,6 +129,20 @@ public class KnowledgeBaseController {
     public ResponseWrapper<KnowledgeBaseResponse> update(
             @Parameter(description = "知识库UUID") @PathVariable String uuid,
             @RequestBody KnowledgeBaseUpdateRequest request) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 先检查资源是否存在
+        KnowledgeBase existing = knowledgeBaseService.getByUuid(uuid);
+        if (existing == null) {
+            return ResponseWrapper.error("NOT_FOUND", "知识库不存在");
+        }
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "WRITE")) {
+            log.warn("User {} has no permission to update knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限修改该知识库");
+        }
+        
         KnowledgeBase kb = new KnowledgeBase();
         kb.setUuid(uuid);
         kb.setTitle(request.getTitle());
@@ -125,6 +161,14 @@ public class KnowledgeBaseController {
     @DeleteMapping("/{uuid}")
     @Operation(summary = "删除知识库", description = "软删除知识库")
     public ResponseWrapper<Void> delete(@Parameter(description = "知识库UUID") @PathVariable String uuid) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "DELETE")) {
+            log.warn("User {} has no permission to delete knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限删除该知识库");
+        }
+        
         knowledgeBaseService.delete(uuid);
         return ResponseWrapper.success();
     }
@@ -134,6 +178,13 @@ public class KnowledgeBaseController {
     public ResponseWrapper<Void> uploadDocument(
             @Parameter(description = "知识库UUID") @PathVariable String uuid,
             @RequestParam("file") MultipartFile file) throws IOException {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "WRITE")) {
+            log.warn("User {} has no permission to upload document to knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限上传文档到该知识库");
+        }
         
         KnowledgeBase kb = knowledgeBaseService.getByUuid(uuid);
         if (kb == null) {
@@ -162,7 +213,8 @@ public class KnowledgeBaseController {
         
         knowledgeBaseService.updateEmbeddingCount(uuid);
         
-        log.info("Document uploaded and indexed: {} for kb: {}", file.getOriginalFilename(), uuid);
+        log.info("Document uploaded and indexed: {} for kb: {} by user: {}", 
+                file.getOriginalFilename(), uuid, userId);
         return ResponseWrapper.success();
     }
 
@@ -170,6 +222,14 @@ public class KnowledgeBaseController {
     @Operation(summary = "查询文档列表", description = "获取知识库中的文档列表")
     public ResponseWrapper<List<FileStorageService.FileInfo>> listDocuments(
             @Parameter(description = "知识库UUID") @PathVariable String uuid) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "READ")) {
+            log.warn("User {} has no permission to list documents of knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限访问该知识库");
+        }
+        
         List<FileStorageService.FileInfo> files = fileStorageService.listFiles(uuid);
         return ResponseWrapper.success(files);
     }
@@ -179,6 +239,14 @@ public class KnowledgeBaseController {
     public ResponseWrapper<Void> deleteDocument(
             @Parameter(description = "知识库UUID") @PathVariable String uuid,
             @Parameter(description = "文件UUID") @PathVariable String fileUuid) throws IOException {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "DELETE")) {
+            log.warn("User {} has no permission to delete document from knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限删除该知识库的文档");
+        }
+        
         fileStorageService.delete(uuid, fileUuid);
         return ResponseWrapper.success();
     }
@@ -187,6 +255,14 @@ public class KnowledgeBaseController {
     @Operation(summary = "查询条目列表", description = "获取知识库中的条目列表")
     public ResponseWrapper<List<KnowledgeBaseItemResponse>> listItems(
             @Parameter(description = "知识库UUID") @PathVariable String uuid) {
+        Long userId = ThreadContext.getCurrentUserId();
+        
+        // 权限校验
+        if (!permissionService.hasPermission(userId, uuid, "READ")) {
+            log.warn("User {} has no permission to list items of knowledge base {}", userId, uuid);
+            return ResponseWrapper.error("FORBIDDEN", "无权限访问该知识库");
+        }
+        
         List<KnowledgeBaseItem> items = knowledgeBaseItemService.listByKbUuid(uuid);
         List<KnowledgeBaseItemResponse> responses = items.stream()
             .map(KnowledgeBaseItemResponse::fromEntity)

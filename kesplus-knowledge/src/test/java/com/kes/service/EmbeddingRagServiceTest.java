@@ -120,7 +120,7 @@ class EmbeddingRagServiceTest {
 
         assertNotNull(results);
         assertFalse(results.isEmpty());
-        verify(embeddingMapper, times(1)).retrieve(any(), any(), any(), any(), any());
+        verify(embeddingMapper, times(1)).retrieve(anyString(), anyString(), any(com.pgvector.PGvector.class), any(Double.class), any(Integer.class));
     }
 
     @Test
@@ -145,7 +145,10 @@ class EmbeddingRagServiceTest {
 
     @Test
     void testEnsureTableExists() {
+        doNothing().when(embeddingModelService).ensureTableExists(eq(1024));
+        
         assertDoesNotThrow(() -> embeddingRagService.ensureTableExists(1024));
+        
         verify(embeddingModelService, times(1)).ensureTableExists(eq(1024));
     }
 }

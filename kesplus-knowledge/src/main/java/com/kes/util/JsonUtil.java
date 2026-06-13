@@ -11,6 +11,9 @@ import java.util.Map;
 public class JsonUtil {
 
     public static String toJson(Object obj) {
+        if (obj == null) {
+            return null;
+        }
         try {
             return JSON.toJSONString(obj);
         } catch (Exception e) {

@@ -5,10 +5,12 @@ import com.kes.entity.Tenant;
 import com.kes.mapper.RoleMapper;
 import com.kes.mapper.TenantMapper;
 import com.kes.service.RoleService;
+import com.kes.util.ThreadContext;
 import com.kes.util.UuidUtil;
 import com.kes.dto.request.RoleCreateRequest;
 import com.kes.dto.request.RoleUpdateRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +57,14 @@ class RoleControllerTest {
 
     @BeforeEach
     void setUp() {
+        ThreadContext.UserContext userContext = new ThreadContext.UserContext();
+        userContext.setUserId(1L);
+        userContext.setUsername("test-user");
+        userContext.setTenantUuid(null);
+        ThreadContext.setUserContext(userContext);
+        ThreadContext.setRequestId(UuidUtil.create());
+        ThreadContext.setClientIp("127.0.0.1");
+
         tenant = new Tenant();
         tenant.setUuid(UuidUtil.create());
         tenant.setName("Test Tenant");
@@ -69,6 +79,11 @@ class RoleControllerTest {
         role.setDescription("Administrator role");
         role.setTenantUuid(tenant.getUuid());
         roleMapper.insert(role);
+    }
+
+    @AfterEach
+    void tearDown() {
+        ThreadContext.clear();
     }
 
     @Test

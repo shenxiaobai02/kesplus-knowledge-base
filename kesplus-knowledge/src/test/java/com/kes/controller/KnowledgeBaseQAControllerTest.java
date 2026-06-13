@@ -9,8 +9,10 @@ import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.mapper.KnowledgeBaseQaMapper;
 import com.kes.mapper.TenantMapper;
 import com.kes.service.DynamicTableService;
+import com.kes.util.ThreadContext;
 import com.kes.util.UuidUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,6 +85,21 @@ class KnowledgeBaseQAControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        tenant = new Tenant();
+        tenant.setUuid(UuidUtil.create());
+        tenant.setName("Test Tenant");
+        tenant.setCode("TEST");
+        tenant.setDescription("Test description");
+        tenantMapper.insert(tenant);
+
+        ThreadContext.UserContext userContext = new ThreadContext.UserContext();
+        userContext.setUserId(1L);
+        userContext.setUsername("test-user");
+        userContext.setTenantUuid(tenant.getUuid());
+        ThreadContext.setUserContext(userContext);
+        ThreadContext.setRequestId(UuidUtil.create());
+        ThreadContext.setClientIp("127.0.0.1");
+
         try (java.sql.Connection conn = java.sql.DriverManager.getConnection(
                 "jdbc:postgresql://152.136.30.130:5432/kesplus-knowledge", "root", "123456");
              java.sql.Statement stmt = conn.createStatement()) {
@@ -92,13 +109,6 @@ class KnowledgeBaseQAControllerTest {
         } catch (Exception e) {
             log.warn("Failed to create vector extension, may already exist", e);
         }
-
-        tenant = new Tenant();
-        tenant.setUuid(UuidUtil.create());
-        tenant.setName("Test Tenant");
-        tenant.setCode("TEST");
-        tenant.setDescription("Test description");
-        tenantMapper.insert(tenant);
 
         embeddingModel = new EmbeddingModel();
         embeddingModel.setUuid(UuidUtil.create());
@@ -117,6 +127,7 @@ class KnowledgeBaseQAControllerTest {
         kb.setTenantUuid(tenant.getUuid());
         kb.setEmbeddingModelUuid(embeddingModel.getUuid());
         kb.setEmbeddingDimension(1024);
+        kb.setOwnerId(1L);
         knowledgeBaseMapper.insert(kb);
 
         dynamicTableService.createTableIfNotExists(1024);
@@ -131,6 +142,11 @@ class KnowledgeBaseQAControllerTest {
         qa.setCreatedTime(LocalDateTime.now());
         qa.setUpdatedTime(LocalDateTime.now());
         knowledgeBaseQaMapper.insert(qa);
+    }
+
+    @AfterEach
+    void tearDown() {
+        ThreadContext.clear();
     }
 
     @Test
@@ -172,7 +188,8 @@ class KnowledgeBaseQAControllerTest {
         mockMvc.perform(post("/api/knowledge-base/{kbUuid}/qa", UuidUtil.create())
                         .content(json)
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

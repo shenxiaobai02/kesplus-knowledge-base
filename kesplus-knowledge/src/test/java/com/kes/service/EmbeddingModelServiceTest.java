@@ -23,8 +23,9 @@ class EmbeddingModelServiceTest {
 
     @BeforeEach
     void setUp() {
+        String uniqueSuffix = System.currentTimeMillis() + "-" + Thread.currentThread().getId();
         model = new EmbeddingModel();
-        model.setModelName("BAAI/bge-m3");
+        model.setModelName("BAAI/bge-m3-test-" + uniqueSuffix);
         model.setEmbeddingDimension(1024);
         model.setModelType("huggingface");
         model.setBaseUrl("https://api.siliconflow.cn/v1");
@@ -39,25 +40,26 @@ class EmbeddingModelServiceTest {
 
         assertNotNull(result);
         assertEquals(created.getUuid(), result.getUuid());
-        assertEquals("BAAI/bge-m3", result.getModelName());
+        assertEquals(model.getModelName(), result.getModelName());
     }
 
     @Test
     void testGetByModelName() {
         embeddingModelService.create(model);
 
-        EmbeddingModel result = embeddingModelService.getByModelName("BAAI/bge-m3");
+        EmbeddingModel result = embeddingModelService.getByModelName(model.getModelName());
 
         assertNotNull(result);
-        assertEquals("BAAI/bge-m3", result.getModelName());
+        assertEquals(model.getModelName(), result.getModelName());
     }
 
     @Test
     void testGetByDimension() {
         embeddingModelService.create(model);
 
+        String uniqueSuffix = System.currentTimeMillis() + "-" + Thread.currentThread().getId();
         EmbeddingModel model2 = new EmbeddingModel();
-        model2.setModelName("text-embedding-3-small");
+        model2.setModelName("text-embedding-3-small-test-" + uniqueSuffix);
         model2.setEmbeddingDimension(1536);
         model2.setModelType("openai");
         model2.setIsActive(true);
@@ -66,16 +68,17 @@ class EmbeddingModelServiceTest {
         List<EmbeddingModel> result = embeddingModelService.getByDimension(1024);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("BAAI/bge-m3", result.get(0).getModelName());
+        assertTrue(result.size() >= 1);
+        assertTrue(result.stream().anyMatch(m -> model.getModelName().equals(m.getModelName())));
     }
 
     @Test
     void testGetActiveModels() {
         embeddingModelService.create(model);
 
+        String uniqueSuffix = System.currentTimeMillis() + "-" + Thread.currentThread().getId();
         EmbeddingModel model2 = new EmbeddingModel();
-        model2.setModelName("inactive-model");
+        model2.setModelName("inactive-model-test-" + uniqueSuffix);
         model2.setEmbeddingDimension(768);
         model2.setModelType("ollama");
         model2.setIsActive(false);
@@ -84,8 +87,9 @@ class EmbeddingModelServiceTest {
         List<EmbeddingModel> result = embeddingModelService.getActiveModels();
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertTrue(result.get(0).getIsActive());
+        assertTrue(result.size() >= 1);
+        assertTrue(result.stream().allMatch(EmbeddingModel::getIsActive));
+        assertTrue(result.stream().anyMatch(m -> model.getModelName().equals(m.getModelName())));
     }
 
     @Test

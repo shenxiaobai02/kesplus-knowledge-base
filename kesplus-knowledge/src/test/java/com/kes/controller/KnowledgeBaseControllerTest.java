@@ -4,10 +4,12 @@ import com.kes.entity.KnowledgeBase;
 import com.kes.entity.Tenant;
 import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.mapper.TenantMapper;
+import com.kes.util.ThreadContext;
 import com.kes.util.UuidUtil;
 import com.kes.dto.request.KnowledgeBaseCreateRequest;
 import com.kes.dto.request.KnowledgeBaseUpdateRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,12 +58,26 @@ class KnowledgeBaseControllerTest {
         tenant.setDescription("Test description");
         tenantMapper.insert(tenant);
 
+        ThreadContext.UserContext userContext = new ThreadContext.UserContext();
+        userContext.setUserId(1L);
+        userContext.setUsername("test-user");
+        userContext.setTenantUuid(tenant.getUuid());
+        ThreadContext.setUserContext(userContext);
+        ThreadContext.setRequestId(UuidUtil.create());
+        ThreadContext.setClientIp("127.0.0.1");
+
         kb = new KnowledgeBase();
         kb.setUuid(UuidUtil.create());
         kb.setTitle("Test KB");
         kb.setRemark("Test knowledge base");
         kb.setTenantUuid(tenant.getUuid());
+        kb.setOwnerId(1L);
         knowledgeBaseMapper.insert(kb);
+    }
+
+    @AfterEach
+    void tearDown() {
+        ThreadContext.clear();
     }
 
     @Test
@@ -126,7 +142,8 @@ class KnowledgeBaseControllerTest {
         mockMvc.perform(put("/api/knowledge-base/{uuid}", UuidUtil.create())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().is5xxServerError());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

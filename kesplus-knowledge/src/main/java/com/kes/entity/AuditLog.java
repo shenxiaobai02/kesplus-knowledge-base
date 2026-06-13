@@ -48,6 +48,15 @@ public class AuditLog {
     @TableField("error_message")
     private String errorMessage;
 
+    @TableField("duration")
+    private Long duration;
+
+    @TableField("request_id")
+    private String requestId;
+
+    @TableField("description")
+    private String description;
+
     @TableField("client_ip")
     private String clientIp;
 
