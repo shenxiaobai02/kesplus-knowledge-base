@@ -51,7 +51,7 @@ rag:
   max-segment-size: 1000
   max-retrieve-results: 5
   min-score: 0.6
-  enable-graph-rag: false
+  enable-graph-rag: true
   enable-self-rag: false
   enable-cache: false
   storage:
@@ -85,6 +85,22 @@ rag:
     ttl-minutes: 30
     max-size: 10000
     cache-type: caffeine
+
+  # 图谱存储配置
+  graph:
+    storage-type: neo4j  # neo4j/postgresql
+    neo4j:
+      uri: bolt://152.136.30.130:7687
+      username: neo4j
+      password: neo4j1234
+      max-connection-pool-size: 50
+      connection-acquisition-timeout: 60000
+
+  # 重排序配置
+  reranker:
+    type: score  # score/llm
+    vector-weight: 0.6
+    graph-weight: 0.4
 
 logging:
   level:

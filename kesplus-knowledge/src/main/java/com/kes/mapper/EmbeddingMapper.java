@@ -5,6 +5,10 @@ import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
+/**
+ * 向量Embedding Mapper
+ * 使用动态表名支持多知识库隔离存储
+ */
 @Mapper
 public interface EmbeddingMapper {
 
@@ -20,7 +24,8 @@ public interface EmbeddingMapper {
             "</script>")
     void batchInsert(@Param("tableName") String tableName, @Param("list") List<KnowledgeBaseEmbedding> list);
 
-    @Select("SELECT * FROM ${tableName} WHERE kb_uuid = #{kbUuid}")
+    @Select("SELECT id, uuid, kb_uuid, kb_item_uuid, embedding, text, metadata_json, created_time " +
+            "FROM ${tableName} WHERE kb_uuid = #{kbUuid}")
     List<KnowledgeBaseEmbedding> selectByKbUuid(@Param("tableName") String tableName, @Param("kbUuid") String kbUuid);
 
     @Delete("DELETE FROM ${tableName} WHERE kb_uuid = #{kbUuid}")
@@ -32,7 +37,8 @@ public interface EmbeddingMapper {
     @Delete("DELETE FROM ${tableName} WHERE kb_item_uuid = #{kbItemUuid}")
     void deleteByKbItemUuid(@Param("tableName") String tableName, @Param("kbItemUuid") String kbItemUuid);
 
-    @Select("SELECT *, 1 - (embedding <=> #{queryEmbedding}::vector) AS score " +
+    @Select("SELECT id, uuid, kb_uuid, kb_item_uuid, embedding, text, metadata_json, created_time, " +
+            "1 - (embedding <=> #{queryEmbedding}::vector) AS score " +
             "FROM ${tableName} " +
             "WHERE kb_uuid = #{kbUuid} " +
             "AND 1 - (embedding <=> #{queryEmbedding}::vector) >= #{minScore} " +

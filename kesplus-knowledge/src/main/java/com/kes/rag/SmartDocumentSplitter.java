@@ -7,36 +7,62 @@ import dev.langchain4j.data.document.splitter.DocumentByLineSplitter;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 智能文档分割器
+ * <p>
+ * 根据文档类型自动选择最佳分割策略，支持多种文档格式。
+ * 配置化参数包括分片大小、重叠大小等。
+ * </p>
+ */
 @Slf4j
 @Component
 public class SmartDocumentSplitter {
 
-    // 默认分片大小（符合研发规范：单方法不超过80行，魔法值零容忍）
     private static final int DEFAULT_CHUNK_SIZE = 1000;
     private static final int DEFAULT_CHUNK_OVERLAP = 100;
-    
-    // 重叠比例常量（经验值：10%-20%）
-    private static final double OVERLAP_RATIO = 0.1;
 
+    // 分片大小（字符数）- 从配置文件注入
+    @Value("${rag.document.chunk-size:1000}")
+    private int chunkSize = DEFAULT_CHUNK_SIZE;
+
+    // 分片重叠大小（字符数）- 从配置文件注入
+    @Value("${rag.document.chunk-overlap:100}")
+    private int chunkOverlap = DEFAULT_CHUNK_OVERLAP;
+    
     /**
      * 根据文档类型自动选择最佳分割策略并分割
      */
     public List<Document> split(Document document) {
         SplitStrategy strategy = detectBestStrategy(document);
         log.debug("Auto-detected strategy: {} for document", strategy);
-        return split(document, strategy, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
+        return split(document, strategy, getEffectiveChunkSize(), getEffectiveChunkOverlap());
     }
 
     /**
      * 使用指定策略分割文档
      */
     public List<Document> split(Document document, SplitStrategy strategy) {
-        return split(document, strategy, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP);
+        return split(document, strategy, getEffectiveChunkSize(), getEffectiveChunkOverlap());
+    }
+    
+    /**
+     * 获取有效的分片大小
+     */
+    private int getEffectiveChunkSize() {
+        return chunkSize > 0 ? chunkSize : DEFAULT_CHUNK_SIZE;
+    }
+    
+    /**
+     * 获取有效的分片重叠大小
+     */
+    private int getEffectiveChunkOverlap() {
+        return chunkOverlap > 0 ? chunkOverlap : DEFAULT_CHUNK_OVERLAP;
     }
 
     /**

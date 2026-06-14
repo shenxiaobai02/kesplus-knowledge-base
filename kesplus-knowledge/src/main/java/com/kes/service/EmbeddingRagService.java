@@ -34,6 +34,9 @@ public class EmbeddingRagService {
     @Autowired
     private RagConfig ragConfig;
 
+    @Autowired(required = false)
+    private GraphRagService graphRagService;
+
     @Transactional
     public void ingest(KnowledgeBase kb, Document document, EmbeddingModel embeddingModel) {
         String tableName = dynamicTableService.getTableName(kb.getEmbeddingDimension());
@@ -88,6 +91,18 @@ public class EmbeddingRagService {
         if (!embeddings.isEmpty()) {
             embeddingMapper.batchInsert(tableName, embeddings);
             log.info("Batch ingested {} embeddings for kb: {}", embeddings.size(), kb.getUuid());
+        }
+
+        // 图谱索引（默认启用，除非明确禁用）
+        Boolean enableGraphRag = ragConfig != null ? ragConfig.getEnableGraphRag() : null;
+        if (graphRagService != null && (enableGraphRag == null || enableGraphRag)) {
+            try {
+                graphRagService.indexGraph(kb, documents);
+                log.info("Graph indexing completed for kb: {}", kb.getUuid());
+            } catch (Exception e) {
+                log.warn("Graph indexing failed for kb: {}, error: {}", kb.getUuid(), e.getMessage());
+                // 图谱索引失败不影响向量索引，仅记录警告
+            }
         }
     }
 

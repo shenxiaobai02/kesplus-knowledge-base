@@ -25,6 +25,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <lombok.version>1.18.46</lombok.version>
         <jedis.version>7.5.0</jedis.version>
+        <neo4j-java-driver.version>6.1.0</neo4j-java-driver.version>
     </properties>
 
     <repositories>
@@ -164,6 +165,13 @@
             <groupId>com.alibaba.fastjson2</groupId>
             <artifactId>fastjson2</artifactId>
             <version>2.0.54</version>
+        </dependency>
+
+        <!-- Neo4j Java Driver for GraphRAG -->
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${neo4j-java-driver.version}</version>
         </dependency>
 
         <dependency>

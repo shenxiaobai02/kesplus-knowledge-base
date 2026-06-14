@@ -63,7 +63,6 @@ public class AuditService {
         String tenantUuid = ThreadContext.getCurrentTenantUuid();
         String requestId = ThreadContext.getRequestId();
         String clientIp = ThreadContext.getClientIp();
-        String userAgent = ThreadContext.getUserAgent();
 
         log(operationType, resourceType, resourceUuid, resourceName, success, errorMessage,
                 null, userId, username, tenantUuid, requestId, clientIp, null);

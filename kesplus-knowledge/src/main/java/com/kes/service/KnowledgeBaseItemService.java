@@ -24,9 +24,6 @@ public class KnowledgeBaseItemService extends ServiceImpl<KnowledgeBaseItemMappe
     @Autowired
     private EmbeddingRagService embeddingRagService;
 
-    @Autowired
-    private DynamicTableService dynamicTableService;
-
     public KnowledgeBaseItem getByUuid(String uuid) {
         return baseMapper.selectByUuid(uuid);
     }

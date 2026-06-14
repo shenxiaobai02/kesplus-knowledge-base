@@ -6,6 +6,8 @@ import com.kes.dto.response.QaResponse;
 import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseEmbedding;
 import com.kes.entity.KnowledgeBaseQa;
+import com.kes.entity.HybridRetrievalResult;
+import com.kes.entity.RerankedResult;
 import com.kes.exception.BaseException;
 import com.kes.exception.ErrorCode;
 import com.kes.mapper.KnowledgeBaseMapper;
@@ -54,6 +56,12 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
     @Autowired
     private KnowledgeBasePermissionService permissionService;
 
+    @Autowired(required = false)
+    private HybridRetriever hybridRetriever;
+
+    @Autowired(required = false)
+    private RerankerService rerankerService;
+
     private static final String RAG_PROMPT_TEMPLATE = """
         你是一个知识库问答助手，根据提供的参考文档回答用户问题。
 
@@ -91,9 +99,30 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
             throw new BaseException(ErrorCode.INTERNAL_ERROR, "嵌入模型创建失败");
         }
 
-        List<KnowledgeBaseEmbedding> retrieved = embeddingRagService.retrieve(kb, question, embeddingModel);
+        // 检查是否启用混合检索
+        Boolean enableGraphRag = ragConfig.getEnableGraphRag();
+        String context;
+        List<QaResponse.ReferenceDocument> references;
 
-        String context = buildContext(retrieved);
+        if (enableGraphRag != null && enableGraphRag && hybridRetriever != null && rerankerService != null) {
+            // 使用混合检索
+            log.info("Using hybrid retrieval for kb: {}", kbUuid);
+            List<HybridRetrievalResult> hybridResults = hybridRetriever.retrieve(kb, question, embeddingModel);
+            
+            // 重排序
+            List<RerankedResult> rerankedResults = rerankerService.rerank(question, hybridResults);
+            
+            // 构建上下文和引用
+            context = buildContextFromReranked(rerankedResults);
+            references = buildReferencesFromReranked(rerankedResults);
+        } else {
+            // 使用向量检索
+            log.info("Using vector retrieval for kb: {}", kbUuid);
+            List<KnowledgeBaseEmbedding> retrieved = embeddingRagService.retrieve(kb, question, embeddingModel);
+            context = buildContext(retrieved);
+            references = buildReferences(retrieved);
+        }
+
         String answer = generateAnswer(question, context);
 
         int promptTokens = estimateTokens(context + question);
@@ -102,7 +131,7 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
         KnowledgeBaseQa qaRecord = saveQaRecord(kbUuid, question, answer, promptTokens, answerTokens);
 
         QaResponse response = QaResponse.fromEntity(qaRecord);
-        response.setReferences(buildReferences(retrieved));
+        response.setReferences(references);
 
         log.info("QA completed for kb: {}, question: {} by user: {}", kbUuid, question, userId);
         return response;
@@ -142,8 +171,22 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
                 return;
             }
 
-            List<KnowledgeBaseEmbedding> retrieved = embeddingRagService.retrieve(kb, question, embeddingModel);
-            String context = buildContext(retrieved);
+            // 检查是否启用混合检索
+            Boolean enableGraphRag = ragConfig.getEnableGraphRag();
+            String context;
+
+            if (enableGraphRag != null && enableGraphRag && hybridRetriever != null && rerankerService != null) {
+                // 使用混合检索
+                log.info("Using hybrid retrieval for stream qa, kb: {}", kbUuid);
+                List<HybridRetrievalResult> hybridResults = hybridRetriever.retrieve(kb, question, embeddingModel);
+                List<RerankedResult> rerankedResults = rerankerService.rerank(question, hybridResults);
+                context = buildContextFromReranked(rerankedResults);
+            } else {
+                // 使用向量检索
+                log.info("Using vector retrieval for stream qa, kb: {}", kbUuid);
+                List<KnowledgeBaseEmbedding> retrieved = embeddingRagService.retrieve(kb, question, embeddingModel);
+                context = buildContext(retrieved);
+            }
 
             StringBuilder fullAnswer = new StringBuilder();
 
@@ -237,12 +280,31 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
         return context.toString().trim();
     }
 
+    private String buildContextFromReranked(List<RerankedResult> rerankedResults) {
+        StringBuilder context = new StringBuilder();
+        for (RerankedResult result : rerankedResults) {
+            context.append(result.getContent()).append("\n\n");
+        }
+        return context.toString().trim();
+    }
+
     private List<QaResponse.ReferenceDocument> buildReferences(List<KnowledgeBaseEmbedding> embeddings) {
         List<QaResponse.ReferenceDocument> references = new ArrayList<>();
         for (KnowledgeBaseEmbedding embedding : embeddings) {
             QaResponse.ReferenceDocument ref = new QaResponse.ReferenceDocument();
             ref.setText(embedding.getText());
             ref.setMetadataJson(embedding.getMetadataJson());
+            references.add(ref);
+        }
+        return references;
+    }
+
+    private List<QaResponse.ReferenceDocument> buildReferencesFromReranked(List<RerankedResult> rerankedResults) {
+        List<QaResponse.ReferenceDocument> references = new ArrayList<>();
+        for (RerankedResult result : rerankedResults) {
+            QaResponse.ReferenceDocument ref = new QaResponse.ReferenceDocument();
+            ref.setText(result.getContent());
+            ref.setMetadataJson(result.getMetadataJson());
             references.add(ref);
         }
         return references;

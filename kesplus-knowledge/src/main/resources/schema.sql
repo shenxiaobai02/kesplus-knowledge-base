@@ -201,3 +201,33 @@ CREATE INDEX IF NOT EXISTS idx_emb_model_is_active ON kesplus_knowledge_base.kes
 INSERT INTO kesplus_knowledge_base.kes_embedding_model (uuid, model_name, embedding_dimension, model_type, base_url, is_active) 
 SELECT 'default-bge-m3', 'BAAI/bge-m3', 1024, 'huggingface', 'https://api.siliconflow.cn/v1', true
 WHERE NOT EXISTS (SELECT 1 FROM kesplus_knowledge_base.kes_embedding_model WHERE model_name = 'BAAI/bge-m3');
+
+-- GraphRAG tables for PostgreSQL storage
+CREATE TABLE IF NOT EXISTS kesplus_knowledge_base.kes_knowledge_base_graph_node (
+    id BIGSERIAL PRIMARY KEY,
+    uuid VARCHAR(36) UNIQUE NOT NULL,
+    kb_uuid VARCHAR(36) NOT NULL,
+    node_type VARCHAR(20) NOT NULL,
+    node_id VARCHAR(36),
+    content TEXT NOT NULL,
+    metadata_json TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS kesplus_knowledge_base.kes_knowledge_base_graph_edge (
+    id BIGSERIAL PRIMARY KEY,
+    uuid VARCHAR(36) UNIQUE NOT NULL,
+    kb_uuid VARCHAR(36) NOT NULL,
+    source_node_uuid VARCHAR(36) NOT NULL,
+    target_node_uuid VARCHAR(36) NOT NULL,
+    relation_type VARCHAR(20) NOT NULL,
+    weight DOUBLE PRECISION DEFAULT 1.0,
+    metadata_json TEXT,
+    created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_node_kb_uuid ON kesplus_knowledge_base.kes_knowledge_base_graph_node(kb_uuid);
+CREATE INDEX IF NOT EXISTS idx_graph_node_type ON kesplus_knowledge_base.kes_knowledge_base_graph_node(node_type);
+CREATE INDEX IF NOT EXISTS idx_graph_edge_kb_uuid ON kesplus_knowledge_base.kes_knowledge_base_graph_edge(kb_uuid);
+CREATE INDEX IF NOT EXISTS idx_graph_edge_source ON kesplus_knowledge_base.kes_knowledge_base_graph_edge(source_node_uuid);
+CREATE INDEX IF NOT EXISTS idx_graph_edge_target ON kesplus_knowledge_base.kes_knowledge_base_graph_edge(target_node_uuid);

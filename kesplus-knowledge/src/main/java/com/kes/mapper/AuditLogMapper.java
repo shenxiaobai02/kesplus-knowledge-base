@@ -9,11 +9,16 @@ import org.apache.ibatis.annotations.Select;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 审计日志Mapper
+ */
 @Mapper
 public interface AuditLogMapper extends BaseMapper<AuditLog> {
 
     @Select("<script>" +
-            "SELECT * FROM kes_audit_log WHERE 1=1" +
+            "SELECT uuid, user_id, tenant_uuid, operation_type, resource_type, resource_id, " +
+            "operation_detail, ip_address, user_agent, created_time " +
+            "FROM kes_audit_log WHERE 1=1" +
             "<if test='userId != null'> AND user_id = #{userId}</if>" +
             "<if test='tenantUuid != null and tenantUuid != \"\"'> AND tenant_uuid = #{tenantUuid}</if>" +
             "<if test='operationType != null and operationType != \"\"'> AND operation_type = #{operationType}</if>" +

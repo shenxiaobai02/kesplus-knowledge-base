@@ -72,6 +72,8 @@ class KnowledgeBaseControllerTest {
         kb.setRemark("Test knowledge base");
         kb.setTenantUuid(tenant.getUuid());
         kb.setOwnerId(1L);
+        kb.setIsPublic(true);
+        kb.setIsDeleted(false);
         knowledgeBaseMapper.insert(kb);
     }
 

@@ -19,6 +19,8 @@ public class RagConfig {
     private EmbeddingConfig embedding;
     private CacheConfig cache;
     private LlmConfig llm;
+    private GraphConfig graph;
+    private RerankerConfig reranker;
 
     @Data
     public static class RetrieverConfig {
@@ -56,5 +58,25 @@ public class RagConfig {
         private Integer timeoutMs;
         private Double temperature;
         private Integer maxTokens;
+    }
+
+    @Data
+    public static class GraphConfig {
+        private String storageType;  // neo4j/postgresql
+        private Neo4jConfig neo4j;
+    }
+
+    @Data
+    public static class Neo4jConfig {
+        private String uri;
+        private String username;
+        private String password;
+    }
+
+    @Data
+    public static class RerankerConfig {
+        private String type;  // score/llm
+        private Double vectorWeight;
+        private Double graphWeight;
     }
 }

@@ -16,9 +16,6 @@ class ModelIntegrationTest {
     @Autowired
     private EmbeddingModelService embeddingModelService;
 
-    @Autowired
-    private EmbeddingRagService embeddingRagService;
-
     @org.springframework.beans.factory.annotation.Value("${rag.embedding.api-key}")
     private String siliconFlowApiKey;
 

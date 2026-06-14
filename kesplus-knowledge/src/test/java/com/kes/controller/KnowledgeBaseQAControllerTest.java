@@ -128,6 +128,8 @@ class KnowledgeBaseQAControllerTest {
         kb.setEmbeddingModelUuid(embeddingModel.getUuid());
         kb.setEmbeddingDimension(1024);
         kb.setOwnerId(1L);
+        kb.setIsPublic(true);
+        kb.setIsDeleted(false);
         knowledgeBaseMapper.insert(kb);
 
         dynamicTableService.createTableIfNotExists(1024);

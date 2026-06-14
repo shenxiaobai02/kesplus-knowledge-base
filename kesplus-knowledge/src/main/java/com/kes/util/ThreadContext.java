@@ -5,6 +5,13 @@ import lombok.Data;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+/**
+ * 线程上下文工具类
+ * <p>
+ * 用于存储和获取请求相关的上下文信息，包括用户信息、请求ID、客户端IP等。
+ * 基于 ThreadLocal 实现，确保线程隔离。
+ * </p>
+ */
 public class ThreadContext {
 
     private static final ThreadLocal<UserContext> USER_CONTEXT = new ThreadLocal<>();
@@ -107,6 +114,7 @@ public class ThreadContext {
                 return ip;
             }
         } catch (Exception e) {
+            // 忽略异常，返回默认值
         }
         return "unknown";
     }
@@ -118,6 +126,7 @@ public class ThreadContext {
                 return attributes.getRequest().getHeader("User-Agent");
             }
         } catch (Exception e) {
+            // 忽略异常，返回默认值
         }
         return "unknown";
     }

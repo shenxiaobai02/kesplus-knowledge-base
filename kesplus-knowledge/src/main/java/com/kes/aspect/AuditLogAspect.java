@@ -186,8 +186,10 @@ public class AuditLogAspect {
                         if (titleValue != null) {
                             return titleValue.toString();
                         }
-                    } catch (NoSuchFieldException | IllegalAccessException ignored) {
-                        // 字段不存在，继续尝试其他字段
+                    } catch (NoSuchFieldException e) {
+                        log.trace("Field 'title' not found in {}", argValue.getClass().getSimpleName());
+                    } catch (IllegalAccessException e) {
+                        log.warn("Cannot access field 'title' in {}: {}", argValue.getClass().getSimpleName(), e.getMessage());
                     }
 
                     try {
@@ -198,8 +200,10 @@ public class AuditLogAspect {
                         if (nameValue != null) {
                             return nameValue.toString();
                         }
-                    } catch (NoSuchFieldException | IllegalAccessException ignored) {
-                        // 字段不存在
+                    } catch (NoSuchFieldException e) {
+                        log.trace("Field 'name' not found in {}", argValue.getClass().getSimpleName());
+                    } catch (IllegalAccessException e) {
+                        log.warn("Cannot access field 'name' in {}: {}", argValue.getClass().getSimpleName(), e.getMessage());
                     }
                 }
             }

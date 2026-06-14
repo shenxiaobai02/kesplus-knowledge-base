@@ -68,6 +68,11 @@ rag:
   storage:
     path: ./data/uploads
 
+  # 文档分割配置
+  document:
+    chunk-size: 1000          # 分片大小（字符数）
+    chunk-overlap: 100        # 分片重叠大小（字符数）
+
   retriever:
     timeout-ms: 30000
     retry-count: 3
@@ -97,6 +102,30 @@ rag:
     max-size: 10000
     cache-type: caffeine
 
+  # 图谱存储配置
+  graph:
+    storage-type: neo4j  # neo4j/postgresql
+    # 关系权重配置
+    relation:
+      contains-weight: 1.0      # CONTAINS关系权重 - 文档包含段落关系，重要性最高
+      keyword-weight: 0.5       # KEYWORD关系基础权重 - 段落提及关键词关系
+      similar-weight: 0.3       # SIMILAR_TO关系基础权重 - 段落相似关系
+    similarity-threshold: 0.2   # 相似关系相似度阈值 - 低于此阈值不创建相似关系
+    keyword-limit: 8            # 关键词提取数量限制
+    decay-factor: 0.8           # 相关节点分数衰减基础系数
+    neo4j:
+      uri: bolt://152.136.30.130:7687
+      username: neo4j
+      password: neo4j1234
+      max-connection-pool-size: 50
+      connection-acquisition-timeout: 60000
+
+  # 重排序配置
+  reranker:
+    type: score  # score/llm
+    vector-weight: 0.6
+    graph-weight: 0.4
+
 management:
   endpoints:
     web:
@@ -115,9 +144,12 @@ management:
 logging:
   level:
     root: INFO
-    com.kes: DEBUG
-    org.mybatis: DEBUG
-    dev.langchain4j: INFO
+    com:
+      kes: INFO
+    org:
+      mybatis: INFO
+    dev:
+      langchain4j: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

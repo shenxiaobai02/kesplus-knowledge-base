@@ -99,4 +99,8 @@ public class KnowledgeBaseService extends ServiceImpl<KnowledgeBaseMapper, Knowl
     public java.util.List<KnowledgeBase> listByTenant(String tenantUuid) {
         return baseMapper.selectByTenantUuid(tenantUuid);
     }
+
+    public java.util.List<KnowledgeBase> list() {
+        return baseMapper.selectAllActive();
+    }
 }
