@@ -126,6 +126,22 @@ rag:
     vector-weight: 0.6
     graph-weight: 0.4
 
+  # 查询增强配置
+  query-enhancer:
+    enabled: true                      # 是否启用查询增强
+    enable-query-rewrite: true        # 是否启用查询改写
+    enable-query-expansion: true       # 是否启用查询扩展
+    enable-intent-recognition: true    # 是否启用意图识别
+    structural-transform-enabled: true  # 是否启用结构化转换改写
+    max-enhanced-queries: 3             # 最大增强查询数量
+    self-rag-threshold: 70            # Self-RAG评分阈值
+    conversation-context-enabled: true  # 是否启用多轮对话上下文管理
+    conversation-context-ttl-minutes: 30  # 对话上下文TTL（分钟）
+
+  # 指标配置
+  metrics:
+    enabled: true                     # 是否启用指标收集
+
 management:
   endpoints:
     web:

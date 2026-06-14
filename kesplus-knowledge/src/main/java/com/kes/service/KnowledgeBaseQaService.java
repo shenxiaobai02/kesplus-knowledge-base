@@ -2,16 +2,20 @@ package com.kes.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.kes.config.RagConfig;
+import com.kes.dto.QueryContext;
 import com.kes.dto.response.QaResponse;
 import com.kes.entity.KnowledgeBase;
 import com.kes.entity.KnowledgeBaseEmbedding;
 import com.kes.entity.KnowledgeBaseQa;
 import com.kes.entity.HybridRetrievalResult;
 import com.kes.entity.RerankedResult;
+import com.kes.entity.RetrievalDecision;
 import com.kes.exception.BaseException;
 import com.kes.exception.ErrorCode;
 import com.kes.mapper.KnowledgeBaseMapper;
 import com.kes.mapper.KnowledgeBaseQaMapper;
+import com.kes.rag.QueryEnhancer;
+import com.kes.rag.SelfRagEvaluator;
 import com.kes.util.ThreadContext;
 import com.kes.util.UuidUtil;
 import dev.langchain4j.data.message.UserMessage;
@@ -62,6 +66,12 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
     @Autowired(required = false)
     private RerankerService rerankerService;
 
+    @Autowired(required = false)
+    private SelfRagEvaluator selfRagEvaluator;
+
+    @Autowired(required = false)
+    private QueryEnhancer queryEnhancer;
+
     private static final String RAG_PROMPT_TEMPLATE = """
         你是一个知识库问答助手，根据提供的参考文档回答用户问题。
 
@@ -99,10 +109,38 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
             throw new BaseException(ErrorCode.INTERNAL_ERROR, "嵌入模型创建失败");
         }
 
-        // 检查是否启用混合检索
-        Boolean enableGraphRag = ragConfig.getEnableGraphRag();
+        // Self-RAG评估：判断是否需要检索
         String context;
         List<QaResponse.ReferenceDocument> references;
+        RetrievalDecision decision = null;
+
+        if (selfRagEvaluator != null && isQueryEnhancementEnabled()) {
+            decision = selfRagEvaluator.evaluate(question);
+            log.info("Self-RAG evaluation result: needRetrieval={}, intent={}, reason={}",
+                    decision.isNeedRetrieval(), decision.getIntent(), decision.getReason());
+
+            if (!decision.isNeedRetrieval()) {
+                // 不需要检索，直接生成答案
+                log.info("No retrieval needed for question: {}", question);
+                context = "";
+                references = new ArrayList<>();
+                String answer = generateAnswerWithoutContext(question);
+                return buildQaResponse(kbUuid, question, answer, context, references);
+            }
+
+            // 使用查询增强
+            if (queryEnhancer != null && isQueryEnhancementEnabled()) {
+                QueryContext queryContext = QueryContext.of(kbUuid, question);
+                List<String> enhancedQueries = queryEnhancer.enhance(question, queryContext);
+                if (enhancedQueries.size() > 1) {
+                    log.info("Query enhanced from '{}' to {} queries", question, enhancedQueries.size());
+                    question = enhancedQueries.get(0);
+                }
+            }
+        }
+
+        // 检查是否启用混合检索
+        Boolean enableGraphRag = ragConfig.getEnableGraphRag();
 
         if (enableGraphRag != null && enableGraphRag && hybridRetriever != null && rerankerService != null) {
             // 使用混合检索
@@ -171,9 +209,37 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
                 return;
             }
 
+            // Self-RAG评估：判断是否需要检索
+            String context;
+            RetrievalDecision decision = null;
+            boolean needRetrieval = true;
+
+            if (selfRagEvaluator != null && isQueryEnhancementEnabled()) {
+                decision = selfRagEvaluator.evaluate(question);
+                log.info("Self-RAG evaluation result: needRetrieval={}, intent={}, reason={}",
+                        decision.isNeedRetrieval(), decision.getIntent(), decision.getReason());
+                needRetrieval = decision.isNeedRetrieval();
+
+                if (!needRetrieval) {
+                    // 不需要检索，直接流式生成答案
+                    log.info("No retrieval needed for stream question: {}", question);
+                    streamAnswerWithoutContext(question, emitter);
+                    return;
+                }
+
+                // 使用查询增强
+                if (queryEnhancer != null) {
+                    QueryContext queryContext = QueryContext.of(kbUuid, question);
+                    List<String> enhancedQueries = queryEnhancer.enhance(question, queryContext);
+                    if (enhancedQueries.size() > 1) {
+                        log.info("Query enhanced from '{}' to {} queries", question, enhancedQueries.size());
+                        question = enhancedQueries.get(0);
+                    }
+                }
+            }
+
             // 检查是否启用混合检索
             Boolean enableGraphRag = ragConfig.getEnableGraphRag();
-            String context;
 
             if (enableGraphRag != null && enableGraphRag && hybridRetriever != null && rerankerService != null) {
                 // 使用混合检索
@@ -326,5 +392,105 @@ public class KnowledgeBaseQaService extends ServiceImpl<KnowledgeBaseQaMapper, K
 
     private int estimateTokens(String text) {
         return (int) Math.ceil(text.length() / 4.0);
+    }
+
+    private static final String NO_CONTEXT_PROMPT_TEMPLATE = """
+        你是一个友好的AI助手。用户提出了以下问题：
+
+        用户问题：%s
+
+        请用简洁友好的语言回答用户的问题。
+        """;
+
+    /**
+     * 生成不需要检索的答案
+     */
+    private String generateAnswerWithoutContext(String question) {
+        if (chatModel == null) {
+            throw new BaseException(ErrorCode.INTERNAL_ERROR, "LLM模型未配置");
+        }
+        String prompt = String.format(NO_CONTEXT_PROMPT_TEMPLATE, question);
+        ChatResponse response = chatModel.chat(UserMessage.from(prompt));
+        return response.aiMessage().text();
+    }
+
+    /**
+     * 构建QA响应
+     */
+    private QaResponse buildQaResponse(String kbUuid, String question, String answer,
+                                        String context, List<QaResponse.ReferenceDocument> references) {
+        int promptTokens = estimateTokens(context + question);
+        int answerTokens = estimateTokens(answer);
+
+        KnowledgeBaseQa qaRecord = saveQaRecord(kbUuid, question, answer, promptTokens, answerTokens);
+
+        QaResponse response = QaResponse.fromEntity(qaRecord);
+        response.setReferences(references);
+
+        log.info("QA completed for kb: {}, question: {}", kbUuid, question);
+        return response;
+    }
+
+    /**
+     * 检查查询增强是否启用
+     */
+    private boolean isQueryEnhancementEnabled() {
+        return ragConfig != null
+                && ragConfig.getQueryEnhancer() != null
+                && ragConfig.getQueryEnhancer().getEnabled() != null
+                && ragConfig.getQueryEnhancer().getEnabled();
+    }
+
+    /**
+     * 流式生成不需要检索的答案
+     */
+    private void streamAnswerWithoutContext(String question, SseEmitter emitter) {
+        StringBuilder fullAnswer = new StringBuilder();
+
+        if (streamingChatModel != null) {
+            String prompt = String.format(NO_CONTEXT_PROMPT_TEMPLATE, question);
+            streamingChatModel.chat(prompt, new StreamingChatResponseHandler() {
+                @Override
+                public void onPartialResponse(String partialResponse) {
+                    try {
+                        fullAnswer.append(partialResponse);
+                        emitter.send(SseEmitter.event().name("token").data(partialResponse));
+                    } catch (IOException e) {
+                        log.error("Failed to send SSE event", e);
+                    }
+                }
+
+                @Override
+                public void onCompleteResponse(dev.langchain4j.model.chat.response.ChatResponse completeResponse) {
+                    // Response is already complete
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    log.error("Streaming chat error", error);
+                    try {
+                        emitter.send(SseEmitter.event().name("error").data(error.getMessage()));
+                    } catch (IOException e) {
+                        log.error("Failed to send error event", e);
+                    }
+                }
+            });
+        }
+
+        try {
+            emitter.send(SseEmitter.event().name("complete").data(""));
+            emitter.complete();
+
+            int promptTokens = estimateTokens(question);
+            int answerTokens = estimateTokens(fullAnswer.toString());
+
+            saveQaRecord(null, question, fullAnswer.toString(), promptTokens, answerTokens);
+
+            log.info("Stream QA without context completed, question: {}", question);
+
+        } catch (Exception e) {
+            log.error("Stream QA completion failed", e);
+            emitter.completeWithError(e);
+        }
     }
 }

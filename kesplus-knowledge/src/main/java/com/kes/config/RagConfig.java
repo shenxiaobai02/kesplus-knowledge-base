@@ -21,14 +21,7 @@ public class RagConfig {
     private LlmConfig llm;
     private GraphConfig graph;
     private RerankerConfig reranker;
-
-    @Data
-    public static class RetrieverConfig {
-        private Integer timeoutMs;
-        private Integer retryCount;
-        private Integer batchSize;
-        private Integer parallelism;
-    }
+    private QueryEnhancerConfig queryEnhancer;
 
     @Data
     public static class EmbeddingConfig {
@@ -47,6 +40,14 @@ public class RagConfig {
         private Long ttlMinutes;
         private Integer maxSize;
         private String cacheType;
+    }
+
+    @Data
+    public static class RetrieverConfig {
+        private Integer timeoutMs;
+        private Integer retryCount;
+        private Integer batchSize;
+        private Integer parallelism;
     }
 
     @Data
@@ -78,5 +79,53 @@ public class RagConfig {
         private String type;  // score/llm
         private Double vectorWeight;
         private Double graphWeight;
+    }
+
+    @Data
+    public static class QueryEnhancerConfig {
+        /**
+         * 是否启用查询增强
+         */
+        private Boolean enabled = true;
+
+        /**
+         * 是否启用查询改写
+         */
+        private Boolean enableQueryRewrite = true;
+
+        /**
+         * 是否启用查询扩展
+         */
+        private Boolean enableQueryExpansion = true;
+
+        /**
+         * 是否启用意图识别
+         */
+        private Boolean enableIntentRecognition = true;
+
+        /**
+         * 是否启用结构化转换改写
+         */
+        private Boolean structuralTransformEnabled = true;
+
+        /**
+         * 最大增强查询数量
+         */
+        private Integer maxEnhancedQueries = 3;
+
+        /**
+         * Self-RAG评分阈值
+         */
+        private Integer selfRagThreshold = 70;
+
+        /**
+         * 是否启用多轮对话上下文管理
+         */
+        private Boolean conversationContextEnabled = true;
+
+        /**
+         * 对话上下文TTL（分钟）
+         */
+        private Integer conversationContextTtlMinutes = 30;
     }
 }
